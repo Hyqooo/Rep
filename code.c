@@ -83,7 +83,8 @@ void main(){
 		так как программа содержит несколько отдельных программ вместе.
 	*/
 
-
+// pragma region - можно этого не писать, здесь использована для отделения подпрограмм.
+// В редакторе позволяет сворачивать и разворачивать помеченнные таким образом участки кода.
 #pragma region Summation
 
 	int a, b, result;
@@ -132,7 +133,18 @@ void main(){
 
 #pragma endregion
 
+#pragma region NumCheck
+	// Можешь проверить на нескольких значениях
+	char ch = 'a';
 	
+	// Мы можем использовать фукнции в условиях, потому что она
+	// возвращает либо 1, либо 0.
+	if(NumCheck(ch)){
+		printf("That's a number!\n");
+	}else{
+		printf("That's not a number!\n");
+	}
+#pragma endregion
 }
 
 /* 
@@ -207,4 +219,12 @@ int ChangeValue(int a){
 */
 void ChangeRealValue(int *a){
 	*a = 20;
+}
+
+int NumCheck(char ch){
+	if(ch >= '0' && ch <= '9'){
+		return 1;
+	}else{
+		return 0;
+	}
 }
