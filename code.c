@@ -83,7 +83,7 @@ void main(){
 		так как программа содержит несколько отдельных программ вместе.
 	*/
 
-/*
+
 #pragma region Summation
 
 	int a, b, result;
@@ -102,9 +102,9 @@ void main(){
 	printf("\nresult = %d\n", result);
 
 #pragma endregion
-*/
 
-/*
+
+
 #pragma region Random	
 	
 	int matrix[5][5];
@@ -112,9 +112,9 @@ void main(){
 	DisplayMatrix(matrix, 'A');
 
 #pragma endregion
-*/
 
-/*
+
+
 #pragma region ChangeValue
 	
 	int a = 3;
@@ -130,7 +130,8 @@ void main(){
 	printf("%d\n", a);
 
 #pragma endregion
-*/
+
+	
 }
 
 /* 
