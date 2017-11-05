@@ -2,6 +2,10 @@
 #include <string.h>
 #include <stdlib.h>
 
+// Prototypes
+int CheckInput(char);
+int IsAllocated(void *);
+
 // Info about word
 struct Word{
 	char *word;
@@ -23,6 +27,8 @@ struct Queue{
 
 void main(){
 	struct Word *aWords = NULL;
+	struct List *pFirstL = NULL;
+	struct Queue *pQ = NULL;
 	char *sent = NULL, **words = NULL;
 	int i, j = 0, wordCounter = 0, oldLen = 0;
 
@@ -36,8 +42,9 @@ void main(){
 			wordCounter++;
 			break;
 		}
-		// Splitters
-		if (!CheckInput(sent[i]) && CheckInput(sent[i])){
+
+		// SpFirstLitters
+		if (!CheckInput(sent[i]) && CheckInput(sent[i - 1]) && ((i - 1) >= 0)){
 			sent[i] = '\0';
 			wordCounter++;
 		}
@@ -51,10 +58,8 @@ void main(){
 		for (j += 1; sent[j - 1] != '\0'; j++);
 		// Выделяется память и копируется слово
 		words[i] = (char*)malloc((j - oldLen) * sizeof(char));
-		if (words[i] == NULL){
-			printf("\nCan not allocate memory!\n");
+		if (!IsAllocated(words[i])) 
 			return;
-		}
 
 		memcpy(*(words + i), sent + oldLen, j - oldLen);
 
@@ -75,20 +80,72 @@ void main(){
 		у конца наоборот.
 	*/
 
-	// Go go go
+#pragma region List
+	// Allocate memory for array of struct words.
 	aWords = (struct Word*)malloc(wordCounter * sizeof(struct Word));
+
+	if (!IsAllocated(aWords))
+		return;
+	
+	// Setting the each word. 
+	for (i = 0; i < wordCounter; i++){
+		(aWords + i)->word = *(words + i);
+		(aWords + i)->fLet = **(words + i);
+		(aWords + i)->lLet = words[i][(strlen(*(words + i)) - 1)];
+	}
+
+	for (i = 0; i < wordCounter; i++){
+		// Setting head word of List.
+		if (pFirstL == NULL){
+			pFirstL = (struct List*)malloc(sizeof(struct List));
+			if (!IsAllocated(pFirstL))
+				return;
+			
+			pFirstL->word = (aWords + i);
+			pFirstL->next = NULL;
+		}else{
+			// Check the start letter.
+			if ((aWords + i)->lLet == pFirstL->word->fLet){
+				pFirstL->word = (aWords + i);
+			}
+			// Check the last letter.
+//			if (){
+
+//			}
+		}
+
+
+	}
+
+#pragma endregion
 
 	// Вывод
 	for (i = 0; i < wordCounter; i++){
-		printf("%s\n", words[i]);
+		printf("%s\n", (aWords + i)->word);
+		printf("%c\n", (aWords + i)->fLet);
+		printf("%c\n", (aWords + i)->lLet);
 	}
 }
 
-// Check input
+// Check input.
 int CheckInput(char ch){
 	if ((ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z')){
 		return 0;
 	}else{
 		return 1;
 	}
+}
+
+int IsAllocated(void *mem){
+	if (mem == NULL){
+		printf("\nCan not allocate memory!\n");
+		return 0;
+	}
+	return 1;
+}
+
+
+// Add item to list.
+void AddToList(){
+
 }
