@@ -2,24 +2,27 @@
 #include <string.h>
 #include <stdlib.h>
 
-// Prototypes
+// Прототипы.
 int CheckInput(char);
-int IsAllocated(void *);
+void IsAllocated(void *);
+void AddToEndList(struct List *, struct Word *);
+void AddToEndQueue(struct Queue *, struct Word *);
+struct List * AddToBeginList(struct List *, struct Word *);
 
-// Info about word
+// Информация о слове.
 struct Word{
 	char *word;
 	char fLet;
 	char lLet;
 };
 
-// List of words.
+// Список слов.
 struct List{
 	struct Word *word;
 	struct List *next;
 };
 
-// Queue of waiting words.
+// Слова, ожидающие своей очереди.
 struct Queue{
 	struct Word *word;
 	struct Queue *next;
@@ -27,8 +30,8 @@ struct Queue{
 
 void main(){
 	struct Word *aWords = NULL;
-	struct List *pFirstL = NULL;
-	struct Queue *pQ = NULL;
+	struct List *listHead = NULL;
+	struct Queue *queueHead = NULL;
 	char *sent = NULL, **words = NULL;
 	int i, j = 0, wordCounter = 0, oldLen = 0;
 
@@ -43,7 +46,7 @@ void main(){
 			break;
 		}
 
-		// SpFirstLitters
+		// Разделители
 		if (!CheckInput(sent[i]) && CheckInput(sent[i - 1]) && ((i - 1) >= 0)){
 			sent[i] = '\0';
 			wordCounter++;
@@ -58,76 +61,84 @@ void main(){
 		for (j += 1; sent[j - 1] != '\0'; j++);
 		// Выделяется память и копируется слово
 		words[i] = (char*)malloc((j - oldLen) * sizeof(char));
-		if (!IsAllocated(words[i])) 
-			return;
+		IsAllocated(words[i]);
 
 		memcpy(*(words + i), sent + oldLen, j - oldLen);
 
 		oldLen = j;
 	}
 
-
-
-	/*
-		Вот какая идея - использовать дополнительный список, названный очередью.
-		Пытаемся включить слово в список, если слово подходит добавляем в список,
-		если нет добавляем его в очередь, следующее слово пытаемся добавить, если попадает в
-		список - проверяем слово в очереди подходит или нет, если нет то в очередь и так далее, 
-		когда слова закончились, но в очереди остались слова берем первое слово и повторяем
-		процедуру.
-
-		Замечание: очередное слово проверяет в голове первую, но не смотрит на предыдущее -
-		у конца наоборот.
-	*/
-
 #pragma region List
-	// Allocate memory for array of struct words.
+	// Память для массива из структур Word.
 	aWords = (struct Word*)malloc(wordCounter * sizeof(struct Word));
 
-	if (!IsAllocated(aWords))
-		return;
+	IsAllocated(aWords);
 	
-	// Setting the each word. 
+	// Запись каждого слова. 
 	for (i = 0; i < wordCounter; i++){
 		(aWords + i)->word = *(words + i);
 		(aWords + i)->fLet = **(words + i);
+		// Последняя буква в слове.
 		(aWords + i)->lLet = words[i][(strlen(*(words + i)) - 1)];
 	}
 
 	for (i = 0; i < wordCounter; i++){
-		// Setting head word of List.
-		if (pFirstL == NULL){
-			pFirstL = (struct List*)malloc(sizeof(struct List));
-			if (!IsAllocated(pFirstL))
-				return;
+		// Первый элемент списка слов.
+		if (listHead == NULL){
+			listHead = (struct List*)malloc(sizeof(struct List));
+			IsAllocated(listHead);
 			
-			pFirstL->word = (aWords + i);
-			pFirstL->next = NULL;
+			listHead->word = aWords;
+			listHead->next = NULL;
 		}else{
-			// Check the start letter.
-			if ((aWords + i)->lLet == pFirstL->word->fLet){
-				pFirstL->word = (aWords + i);
+			if ((aWords + i)->lLet == listHead->word->fLet){
+				// Проверяем первую букву.
+				AddToBeginList(listHead, aWords);
+			}else if ((aWords + i)->fLet == listHead->word->lLet){
+				// Проверяем последнюю букву.
+				AddToEndList(listHead, aWords + i);
+			}else{
+				// Слово отправляется ждать.
+				if (queueHead == NULL){
+					queueHead = (struct Queue*)malloc(sizeof(struct Queue));
+					IsAllocated(queueHead);
+
+					queueHead->word = (aWords + i);
+					queueHead->next = NULL;
+				}else{
+					AddToEndQueue(queueHead, aWords + i);
+				}
 			}
-			// Check the last letter.
-//			if (){
-
-//			}
 		}
-
-
 	}
 
 #pragma endregion
 
 	// Вывод
-	for (i = 0; i < wordCounter; i++){
-		printf("%s\n", (aWords + i)->word);
-		printf("%c\n", (aWords + i)->fLet);
-		printf("%c\n", (aWords + i)->lLet);
+	printf("\nList: ");
+	while (listHead != NULL){
+		printf("%s ", listHead->word->word);
+		listHead = listHead->next;
 	}
+
+	printf("\nQueue: ");
+	while (queueHead != NULL){
+		printf("%s ", queueHead->word->word);
+		queueHead = queueHead->next;
+	}
+	printf("\n");
+
+#pragma region FreeMemory
+	for (i = 0; i < wordCounter; i++){
+		free(words[i]);
+	}
+	
+	free(sent);
+	free(words);
+#pragma endregion
 }
 
-// Check input.
+// Проверка ввода.
 int CheckInput(char ch){
 	if ((ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z')){
 		return 0;
@@ -136,16 +147,50 @@ int CheckInput(char ch){
 	}
 }
 
-int IsAllocated(void *mem){
+// Была ли выделена память.
+void IsAllocated(void *mem){
 	if (mem == NULL){
 		printf("\nCan not allocate memory!\n");
-		return 0;
+		exit(0);
 	}
-	return 1;
 }
 
+// Добавление слова в конец списка.
+void AddToEndList(struct List *head, struct Word *word){
+	struct List *current = head;
+	while (current->next != NULL){
+		current = current->next;
+	}
 
-// Add item to list.
-void AddToList(){
+	current->next = (struct List *)malloc(sizeof(struct List));
+	IsAllocated(current->next);
 
+	current->next->word = word;
+	current->next->next = NULL;
+}
+
+// Добавление слова в начало списка.
+struct List * AddToBeginList(struct List *head, struct Word *word){
+	struct List *new_el = (struct List*)malloc(sizeof(struct List));
+	IsAllocated(new_el);
+
+	new_el->word = word;
+	new_el->next = head;
+	head = new_el;
+
+	return new_el;
+}
+
+// Добавление слова в очередь ожидающих.
+void AddToEndQueue(struct Queue *head, struct Word *word){
+	struct Queue *current = head;
+	while (current->next != NULL){
+		current = current->next;
+	}
+
+	current->next = (struct Queue*)malloc(sizeof(struct Queue));
+	IsAllocated(current->next);
+
+	current->next->word = word;
+	current->next->next = NULL;
 }
