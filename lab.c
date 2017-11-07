@@ -1,37 +1,42 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+/*
+	Че, пацаны, ониме?
+*/
+
+// Информация о слове.
+typedef struct Word{
+	char *word;
+	char fLet;
+	char lLet;
+}Word_t;
+
+// Список слов.
+typedef struct List{
+	struct Word *word;
+	struct List *next;
+}List_t;
+
+// Слова, ожидающие своей очереди.
+typedef struct Queue{
+	struct Word *word;
+	struct Queue *next;
+}Queue_t;
 
 // Прототипы.
 int CheckInput(char);
 void IsAllocated(void *);
-void AddToEndList(struct List *, struct Word *);
-void AddToEndQueue(struct Queue *, struct Word *);
-struct List * AddToBeginList(struct List *, struct Word *);
-
-// Информация о слове.
-struct Word{
-	char *word;
-	char fLet;
-	char lLet;
-};
-
-// Список слов.
-struct List{
-	struct Word *word;
-	struct List *next;
-};
-
-// Слова, ожидающие своей очереди.
-struct Queue{
-	struct Word *word;
-	struct Queue *next;
-};
+void AddToEnd_Queue(Queue_t *, Word_t *);
+struct List * AddToBegin_List(List_t *, Word_t *);
+struct List * AddToEnd_List(List_t *, Word_t *);
+void * AddBet_List(List_t *, List_t *, Word_t *);
 
 void main(){
-	struct Word *aWords = NULL;
-	struct List *listHead = NULL;
-	struct Queue *queueHead = NULL;
+	Word_t *aWords = NULL;
+	List_t *listHead = NULL;
+	Queue_t *queueHead = NULL;
+
 	char *sent = NULL, **words = NULL;
 	int i, j = 0, wordCounter = 0, oldLen = 0;
 
@@ -70,8 +75,7 @@ void main(){
 
 #pragma region List
 	// Память для массива из структур Word.
-	aWords = (struct Word*)malloc(wordCounter * sizeof(struct Word));
-
+	aWords = (Word_t*)malloc(wordCounter * sizeof(Word_t));
 	IsAllocated(aWords);
 	
 	// Запись каждого слова. 
@@ -82,7 +86,7 @@ void main(){
 		(aWords + i)->lLet = words[i][(strlen(*(words + i)) - 1)];
 	}
 
-	for (i = 0; i < wordCounter; i++){
+/*	for (i = 0; i < wordCounter; i++){
 		// Первый элемент списка слов.
 		if (listHead == NULL){
 			listHead = (struct List*)malloc(sizeof(struct List));
@@ -111,6 +115,9 @@ void main(){
 			}
 		}
 	}
+*/
+
+	
 
 #pragma endregion
 
@@ -147,7 +154,7 @@ int CheckInput(char ch){
 	}
 }
 
-// Была ли выделена память.
+// Проверяет была ли выделена память.
 void IsAllocated(void *mem){
 	if (mem == NULL){
 		printf("\nCan not allocate memory!\n");
@@ -155,23 +162,47 @@ void IsAllocated(void *mem){
 	}
 }
 
+// Добавление между элементами.
+void * AddBet_List(List_t *prev, List_t *next, Word_t *word){
+	List_t *new_el = (List_t*)malloc(sizeof(List_t));
+	IsAllocated(new_el);
+
+	prev->next = new_el;
+	new_el->word = word;
+	new_el->next = next;
+
+	return prev;
+}
+
 // Добавление слова в конец списка.
-void AddToEndList(struct List *head, struct Word *word){
-	struct List *current = head;
+List_t * AddToEnd_List(List_t *head, Word_t *word){
+	List_t *current = head;
+
+	if (current == NULL){
+		current = (List_t *)malloc(sizeof(List_t));
+		IsAllocated(current);
+		current->word = word;
+		current->next = NULL;
+
+		return current;
+	}
+
 	while (current->next != NULL){
 		current = current->next;
 	}
 
-	current->next = (struct List *)malloc(sizeof(struct List));
+	current->next = (List_t*)malloc(sizeof(List_t));
 	IsAllocated(current->next);
 
 	current->next->word = word;
 	current->next->next = NULL;
+
+	return head;
 }
 
 // Добавление слова в начало списка.
-struct List * AddToBeginList(struct List *head, struct Word *word){
-	struct List *new_el = (struct List*)malloc(sizeof(struct List));
+List_t * AddToBegin_List(List_t *head, Word_t *word){
+	List_t *new_el = (List_t*)malloc(sizeof(List_t));
 	IsAllocated(new_el);
 
 	new_el->word = word;
@@ -182,13 +213,13 @@ struct List * AddToBeginList(struct List *head, struct Word *word){
 }
 
 // Добавление слова в очередь ожидающих.
-void AddToEndQueue(struct Queue *head, struct Word *word){
-	struct Queue *current = head;
+void AddToEnd_Queue(Queue_t *head, Word_t *word){
+	Queue_t *current = head;
 	while (current->next != NULL){
 		current = current->next;
 	}
 
-	current->next = (struct Queue*)malloc(sizeof(struct Queue));
+	current->next = (Queue_t*)malloc(sizeof(Queue_t));
 	IsAllocated(current->next);
 
 	current->next->word = word;
