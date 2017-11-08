@@ -1,9 +1,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-/*
-	Че, пацаны, ониме?
-*/
 
 // Информация о слове.
 typedef struct Word{
@@ -21,19 +18,17 @@ typedef struct List{
 // Прототипы.
 int CheckInput(char);
 void IsAllocated(void *);
-struct List * AddToBegin(List_t *, Word_t *);
+void AddToBegin(List_t **, Word_t *);
 struct List * AddToEnd(List_t *, Word_t *);
-void * AddBet(List_t *, List_t *, Word_t *);
-void * AddFromQueue(List_t *, List_t *, List_t *, enum Mod);
-
-enum Mod { Both, Right, Left };
+void AddBet(List_t *, List_t *, Word_t *);
+void AddFromQ(List_t *, List_t *, List_t *);
 
 void main(){
 	Word_t *aWords = NULL;
 	List_t *listHead = NULL, *queueHead = NULL, *currentList = NULL;
 	
-	char *sent = NULL, **words = NULL, *current = NULL;
-	int i, j = 0, wordCounter = 0, oldLen = 0;
+	char *sent = NULL, **words = NULL;
+	int i, j = 0, wordCounter = 0, oldLen = 0, fAdded = 0;
 
 	// Записываем слова в предложение
 	for (i = 0;; i++){
@@ -80,7 +75,9 @@ void main(){
 		(aWords + i)->lLet = words[i][(strlen(*(words + i)) - 1)];
 	}
 
-	for(i = 0;; i++){
+	for (i = 0; i < wordCounter; i++){
+
+		fAdded = 0;
 
 		// Инициализируем голову списка.
 		if (listHead == NULL){
@@ -90,45 +87,38 @@ void main(){
 			currentList = listHead;
 			continue;
 		}
-		
-		// Смотрим возможность добавления между словами.
+
 		while (currentList->next != NULL){
-			if ((aWords + i)->fLet == currentList->word_S->lLet && 
+			if ((aWords + i)->fLet == currentList->word_S->lLet &&
 				(aWords + i)->lLet == currentList->next->word_S->fLet){
+
 				AddBet(currentList, currentList->next, aWords + i);
-				// Проверяем возможность добавить слово из зала.
-				AddFromQueue(currentList, currentList->next, queueHead, Both);
+				AddFromQ(listHead, listHead->next, queueHead);
+				currentList = currentList->next;
+				fAdded = 1;
+				break;
 			}
 
 			currentList = currentList->next;
 		}
 
+		if (fAdded) continue;
+
 		if ((aWords + i)->fLet == currentList->word_S->lLet){
-			// В конец списка.
-			AddToEnd(listHead, (aWords + i));
-
-			// Проверяем возможность добавить слово из зала.
-			AddFromQueue(listHead, listHead->next, queueHead, Right);
-
-		}else if ((aWords + i)->lLet == listHead->word_S->fLet){
-			// В начало списка.
-			listHead = AddToBegin(listHead, (aWords + i));
-
-			// Проверяем возможность добавить слово из зала.
-			AddFromQueue(listHead, listHead->next, queueHead, Right);
-
+			AddToEnd(listHead, aWords + i);
+			AddFromQ(listHead, listHead->next, queueHead);
+		}else if ((aWords + i)->lLet == currentList->word_S->fLet){
+			AddToBegin(&listHead, aWords + i);
+			AddFromQ(listHead, listHead->next, queueHead);
 		}else{
-			// Инициализируем голову зала ожидания.
 			if (queueHead == NULL){
-				queueHead = AddToEnd(queueHead, (aWords + i));
+				queueHead = AddToEnd(queueHead, aWords + i);
 				continue;
 			}
 
-			// В зал ожидания.
-			AddToEnd(queueHead, (aWords + i));
+			AddToEnd(queueHead, aWords + i);
 		}
 	}
-
 #pragma endregion
 
 	// Вывод
@@ -171,52 +161,40 @@ void IsAllocated(void *mem){
 	}
 }
 
-// Добавляет слова из очереди
-void * AddFromQueue(List_t *prev, List_t *next, List_t *queueHead, enum Mod mode){
-	
-	while (queueHead != NULL){
-		switch (mode){
-		case Both:
-			// Проверяет с обеих сторон.
-			if (queueHead->word_S->fLet == prev->word_S->lLet &&
-				queueHead->word_S->lLet == next->word_S->fLet)
-			{
-				AddBet(prev, next, queueHead->word_S);
-			}
-			queueHead = queueHead->next;
-			break;
+// Добавление из очереди.
+void AddFromQ(List_t *first, List_t *second, List_t *queueHead){
+	List_t *currentQ = queueHead;
+	List_t *currentP = first;
+	List_t *currentN = second;
 
-		case Right:
-			// Только крайнее правое слово.
-			if (queueHead->word_S->fLet == prev->word_S->lLet){
-				AddToEnd(prev, queueHead->word_S);
-			}
-			queueHead = queueHead->next;
-			break;
-
-		case Left:
-			// Крайнее левое слово.
-			if (queueHead->word_S->lLet == prev->word_S->fLet){
-				AddToBegin(next, queueHead->word_S);
-			}
-			queueHead = queueHead->next;
-			break;
+	while (currentN->next != NULL){
+		if (currentQ->word_S->fLet == currentP->word_S->lLet &&
+			currentQ->word_S->lLet == currentN->word_S->fLet){
+			
+			AddBet(currentP, currentN, currentQ->word_S);
+			currentQ = currentQ->next;
+		}else if (currentQ != NULL){
+			currentQ = queueHead;
+			currentP = currentN;
+			currentN = currentN->next;
 		}
 	}
 
-	return queueHead;
+	if (currentQ->word_S->fLet == currentN->word_S->lLet){
+		AddToEnd(first, queueHead->word_S);
+	}else if (currentQ->word_S->lLet == first->word_S->fLet){
+		AddToBegin(&first, queueHead->word_S);
+	}
 }
 
 // Добавление между элементами.
-void * AddBet(List_t *prev, List_t *next, Word_t *word){
+void AddBet(List_t *prev, List_t *next, Word_t *word){
 	List_t *new_el = (List_t*)malloc(sizeof(List_t));
 	IsAllocated(new_el);
 
 	prev->next = new_el;
 	new_el->word_S = word;
 	new_el->next = next;
-
-	return prev;
 }
 
 // Добавление слова в конец списка.
@@ -247,13 +225,11 @@ List_t * AddToEnd(List_t *head, Word_t *word){
 }
 
 // Добавление слова в начало списка.
-List_t * AddToBegin(List_t *head, Word_t *word){
+void AddToBegin(List_t **head, Word_t *word){
 	List_t *new_el = (List_t*)malloc(sizeof(List_t));
 	IsAllocated(new_el);
 
 	new_el->word_S = word;
-	new_el->next = head;
-	head = new_el;
-
-	return new_el;
+	new_el->next = *head;
+	*head = new_el;
 }
