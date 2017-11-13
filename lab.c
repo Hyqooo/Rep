@@ -21,11 +21,12 @@ void IsAllocated(void *);
 void AddToBegin(List_t **, Word_t *);
 void AddBet(List_t *, List_t *, Word_t *);
 void DeleteSpec(List_t  **, List_t *);
+void ClearMemory(List_t **);
 struct List * AddToEnd(List_t *, Word_t *);
 
 void main(){
-	Word_t *aWords = NULL, *curWord = NULL;
-	List_t **listHead = NULL, *queueHead = NULL, *currentList = NULL, *curQueue = NULL;
+	Word_t *aWords = NULL, **lastWord = NULL;
+	List_t **listHead = NULL, *queueHead = NULL, *currentList = NULL;
 	
 	char *sent = NULL, **words = NULL;
 	int i, j = 0, k = 0, wordCounter = 0, oldLen = 0, fAdded = 0, listsA = 0;
@@ -53,7 +54,7 @@ void main(){
 	for (i = 0; i < wordCounter; i++){
 		// Считает количество букв в слове.
 		for (j += 1; sent[j - 1] != '\0'; j++);
-		// Выделяется память и копируется слово.
+
 		words[i] = (char*)malloc((j - oldLen) * sizeof(char));
 		IsAllocated(words[i]);
 
@@ -62,7 +63,6 @@ void main(){
 		oldLen = j;
 	}
 
-#pragma region List
 	// Память для массива из структур Word.
 	aWords = (Word_t*)malloc(wordCounter * sizeof(Word_t));
 	IsAllocated(aWords);
@@ -83,6 +83,7 @@ void main(){
 
 	for (i = 0; queueHead != NULL; i++){
 
+		// Новый список
 		if (queueHead != NULL && i != 0){
 			k++;
 			listHead = (List_t**)realloc(listHead, (k + 1) * sizeof(List_t*));
@@ -90,56 +91,75 @@ void main(){
 			*(listHead + k) = NULL;
 		}
 
-		curQueue = queueHead;
 		currentList = *(listHead + k);
 
 		// Инициализируем голову списка
 		if (*(listHead + k) == NULL){
 			*(listHead + k) = (List_t*)calloc(1, sizeof(List_t));
 			IsAllocated(*listHead + k);
-			(*(listHead + k))->word_S = curQueue->word_S;
+			(*(listHead + k))->word_S = queueHead->word_S;
 			currentList = *(listHead + k);
 
-			DeleteSpec(&queueHead, curQueue);
-			curQueue = queueHead;
+			DeleteSpec(&queueHead, queueHead);
+			lastWord = &(queueHead->word_S);
 			listsA++;
 		}
-		/* 
-			Исправить бесконечный цикл если остаются разные элементы
-			Так же, возможно, появится проблема со вторым условием
-		*/
-		while (curQueue != NULL){
-			if (currentList->word_S->fLet == curQueue->word_S->lLet){
-				AddToBegin(&currentList, curQueue->word_S);
-				DeleteSpec(&queueHead, curQueue);
-			}
-			else if (currentList->word_S->lLet == curQueue->word_S->fLet &&
-				currentList->next->word_S->fLet == curQueue->word_S->lLet){
-				if (currentList != NULL && currentList->next != NULL){
-					AddBet(currentList, currentList->next, curQueue->word_S);
-					DeleteSpec(&queueHead, curQueue);
-				}
-			}else if (currentList->word_S->lLet == curQueue->word_S->fLet){
-				AddToEnd(currentList, curQueue->word_S);
-				DeleteSpec(&queueHead, curQueue);
-			}else{
-				AddToEnd(queueHead, curQueue->word_S);
-				DeleteSpec(&queueHead, curQueue);
+
+		while (queueHead != NULL){
+
+			fAdded = 0;
+
+			if (queueHead->word_S->lLet == (*(listHead + k))->word_S->fLet){
+				AddToBegin((listHead + k), queueHead->word_S);
+				DeleteSpec(&queueHead, queueHead);
+				
+				lastWord = &(queueHead->word_S);
+				fAdded = 1;
 			}
 			
-			curQueue = curQueue->next;
-		}
-		// Continue...
-	}
+			currentList = *(listHead + k);
 
-	
-#pragma endregion
+			while (currentList->next != NULL){
+				if (queueHead != NULL){
+					if (queueHead->word_S->lLet == currentList->word_S->fLet &&
+						queueHead->word_S->fLet == currentList->word_S->lLet){
+
+						AddBet(currentList, currentList->next, queueHead->word_S);
+						DeleteSpec(&queueHead, queueHead);
+
+						lastWord = &(queueHead->word_S);
+						fAdded = 1;
+					}
+				}
+				currentList = currentList->next;
+			}
+
+			if (queueHead != NULL){
+				if (queueHead->word_S->fLet == currentList->word_S->lLet){
+					AddToEnd(*(listHead + k), queueHead->word_S);
+					DeleteSpec(&queueHead, queueHead);
+				
+					lastWord = &(queueHead->word_S);
+					fAdded = 1;
+				}else{
+					AddToEnd(queueHead, queueHead->word_S);
+					DeleteSpec(&queueHead, queueHead);
+				}
+			}
+
+			if (queueHead != NULL){
+				if (*lastWord == (queueHead->word_S) && !fAdded) break;
+			}
+		}
+
+	}
 
 	// Вывод.
 	for (i = 0; i < listsA; i++){
 		printf("\nList #%d: ", i + 1);
 		printf("%s ", (*(listHead + i))->word_S->word);
 		currentList = (*(listHead + i));
+
 		while (currentList->next != NULL){
 			printf("%s ", currentList->next->word_S->word);
 			currentList = currentList->next;
@@ -147,12 +167,20 @@ void main(){
 	}
 	printf("\n");
 
+
+	// Освобождаем память.
+	for (i = 0; i < listsA; i++){
+		ClearMemory(listHead + i);
+	}
+
 	for (i = 0; i < wordCounter; i++){
 		free(words[i]);
 	}
 	
 	free(sent);
 	free(words);
+	free(aWords);
+	free(listHead);
 
 }
 
@@ -173,6 +201,20 @@ void IsAllocated(void *mem){
 	}
 }
 
+// Чистит память от списков.
+void ClearMemory(List_t **head){
+	List_t *current = *head;
+	List_t *next;
+
+	while (current != NULL)
+	{
+		next = current->next;
+		free(current);
+		current = next;
+	}
+	*head = NULL;
+}
+
 void DeleteSpec(List_t **head, List_t *del_el){
 	List_t *t = del_el;
 	List_t *current = *head;
@@ -184,6 +226,7 @@ void DeleteSpec(List_t **head, List_t *del_el){
 		if (current->next != NULL){
 			while (current->next != del_el){
 				current = current->next;
+				if (current->next == NULL) break;
 			}
 		}
 		if (!(t->next)){
