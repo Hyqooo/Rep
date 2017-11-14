@@ -5,7 +5,7 @@
 #define PATH "/test.txt"
 
 typedef struct List{
-	char *info; 
+	char *info;
 	struct List *next;
 }List;
 
