@@ -6,8 +6,6 @@ typedef struct List{
 	struct List *next;
 }List;
 
-void AddItem(int);
-
 void main(){
 	List *first = NULL, *cur = NULL;
 	int value;
