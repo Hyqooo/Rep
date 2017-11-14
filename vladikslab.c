@@ -1,86 +1,194 @@
-#include <stdio.h>
-#include <stdlib.h>
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <string.h>
+
+#define PATH "/test.txt"
 
 typedef struct List{
-	int val;
+	char *info; 
 	struct List *next;
 }List;
 
-void Delete(List **, List *);
+void Print(const List *);
+void IsAllocated(void *);
+void AddToList(List **, char *);
+int Write(char **, char);
+int CheckInput(char);
 
 void main(){
-	List *first = NULL, *cur = NULL, *prev = NULL;
-	int value, a, b;
-	char c;
+	char *sent = NULL, *scheme = NULL, c, type, **words = NULL;
+	List *list = NULL, *cur = NULL;
+	int i, j = 0, wordCounter = 0, oldLen = 0, fFound = 0;
 
 
-	/* Концы интервала. */
-	scanf("%i", &a);
-	scanf("%i", &b);
+	/* Вводим шаблон */
+	for (i = 0;; i++){
+		scheme = (char*)realloc(scheme, (i + 1) * (sizeof(char)));
+		scanf("%c", &c);
+		*(scheme + i) = c;
+		if (c == '.') break;
+	}
+
+	fflush(stdin);
+	printf("\nChoose type of input: f - file, k - keyboard\n");
+	scanf("%c", &type);
+	fflush(stdin);
+	wordCounter = Write(&sent, type);
+
+
+	// Записывает слова из предложения в новый массив.
+	words = (char**)malloc(wordCounter * sizeof(char*));
+	for (i = 0; i < wordCounter; i++){
+		// Считает количество букв в слове.
+		for (j += 1; sent[j - 1] != '\0'; j++);
+
+		words[i] = (char*)malloc((j - oldLen) * sizeof(char));
+		IsAllocated(words[i]);
+
+		memcpy(*(words + i), sent + oldLen, j - oldLen);
+
+		oldLen = j;
+	}
+
+	/* Добавлять слова только после проверки */
+
+	/* Алгоритм */
+	while (cur != NULL){
+		for (i = 0; *(scheme + i) != '.'; i++){
+			if (*(scheme + i) == '*'){
+				for (j = 0; *(*(words + i) + j) != '\0'; j++){
+					if (*(*(words + i) + j) == *(scheme + i + 1)){
+						fFound = 1;
+						AddToList(&list ,*(words + i));
+					}
+				}
+
+				if (!fFound) break;
+			}else{
+				for (j = 0; *(*(words + i) + j) != '\0'; j++){
+					if (*(*(words + i) + j) == *(scheme + i)){
+						fFound = 1;
+						AddToList(&list, *(words + i));
+					}
+				}
+
+				if (!fFound) break;
+			}
+		}
+
+		cur = cur->next;
+	}
+}
+
+void AddToList(List **head, char *word){
+	List *cur = *head;
 	
 	if (cur == NULL){
 		cur = (List *)malloc(sizeof(List));
-		if (cur == NULL) return;
-		scanf("%i", &value);
-		cur->val = value;
+		IsAllocated(cur);
+
+		cur->info = word;
 		cur->next = NULL;
-	}
-
-	first = cur;
-
-	while (1){
+	}else{
 		cur->next = (List *)malloc(sizeof(List));
-		if (cur->next == NULL) return;
-		scanf("%i%c", &value, &c);
-		cur->next->val = value;
+		IsAllocated(cur->next);
+
+		cur->next->info = word;
 		cur->next->next = NULL;
-
-		if (c == '.') break;
-
-		cur = cur->next;
 	}
+}
 
-	cur = first;
-
-	/* Идем по списку ищем неподходящие элементы */
-	while (cur != NULL){
-		if (cur->val < a || cur->val > b){
-			Delete(&first, cur);
-			cur = first;
-		}else{
-			cur = cur->next;
-		}
+// Проверяет была ли выделена память.
+void IsAllocated(void *mem){
+	if (mem == NULL){
+		printf("\nCan not allocate memory!\n");
+		exit(0);
 	}
+}
 
-	cur = first;
-	
-	while (cur != NULL){
-		printf("%i ", cur->val);
-		cur = cur->next;
+void Print(const List *head) {
+	while (head) {
+		printf("%s ", head->info);
+		head = head->next;
 	}
-	
 	printf("\n");
 }
 
-void Delete(List **first, List *del){
-	List *t = *first;
-
-	if (*first == del){
-		*first = (*first)->next;
-	}else{
-		// Дошли до предыдущего у удаляемого элемента. 
-		while (t->next != del){
-			t = t->next;
-		}
-
-		if (del->next != NULL){
-			t->next = del->next;
-		}else{
-			t->next = NULL;
-		}
+// Проверка ввода.
+int CheckInput(char ch){
+	if ((ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z')){
+		return 0;
 	}
-
-	free(del);
+	else{
+		return 1;
+	}
 }
 
+// Запись слов.
+int Write(char **sent, char type){
+	int i = 0, wordCounter = 0;
 
+	if (type == 'f'){
+		char c;
+		FILE *fl = NULL;
+
+		fl = fopen(PATH, "rt");
+
+		if (fl == NULL){
+			printf("\nFile cannot be opened!\n");
+			exit(0);
+		}
+
+		c = fgetc(fl);
+		(*sent) = (char *)malloc(sizeof(char));
+
+		while (c != EOF){
+			(*sent) = (char *)realloc((*sent), (i + 1) * sizeof(char));
+			*(*sent + i) = c;
+			c = fgetc(fl);
+
+			if (*(*sent + i) == '.'){
+				*(*sent + i) = '\0';
+				wordCounter++;
+				break;
+			}
+
+			// Разделители.
+			if (!CheckInput(*(*sent + i)) && CheckInput(*(*sent + i - 1)) && ((i - 1) >= 0)){
+				*(*sent + i) = '\0';
+				wordCounter++;
+			}
+			i++;
+		}
+
+		*(*sent + i) = '\0';
+
+		fclose(fl);
+	}
+	else if (type == 'k'){
+		printf("Input sentence.\n");
+
+		// Записываем слова в предложение.
+		for (i = 0;; i++){
+			(*sent) = (char*)realloc((*sent), (i + 1) * sizeof(char));
+			scanf("%c", &*(*sent + i));
+			if (*(*sent + i) == '.'){
+				*(*sent + i) = '\0';
+				wordCounter++;
+				break;
+			}
+
+			if (!CheckInput(*(*sent + i)) && CheckInput(*(*sent + i - 1)) && ((i - 1) >= 0)){
+				*(*sent + i) = '\0';
+				wordCounter++;
+			}
+		}
+
+	}
+	else{
+		printf("Undefined type of input!\n");
+		exit(0);
+	}
+
+	return wordCounter;
+}
