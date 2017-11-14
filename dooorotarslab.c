@@ -5,19 +5,20 @@
 #define PATH "/test.txt"
 
 typedef struct List{
-	char *info; 
+	char *info;
 	struct List *next;
 }List;
 
 void Print(const List *);
 void IsAllocated(void *);
+void AddToList(List **, char *);
 int Write(char **, char);
 int CheckInput(char);
 
 void main(){
 	char *sent = NULL, *scheme = NULL, c, type, **words = NULL;
-	List *list = NULL;
-	int i, j = 0, wordCounter = 0, oldLen = 0;
+	List *list = NULL, *cur = NULL;
+	int i, j = 0, wordCounter = 0, oldLen = 0, fFound = 0;
 
 
 	/* Вводим шаблон */
@@ -47,6 +48,46 @@ void main(){
 		memcpy(*(words + i), sent + oldLen, j - oldLen);
 
 		oldLen = j;
+	}
+
+	/* Добавлять слова только после проверки */
+
+	/* Алгоритм Хз что ето */
+	while (cur != NULL){
+		for (i = 0; *(scheme + i) != '.'; i++){
+			if (*(scheme + i) == '*'){
+				for (j = 0; *(*(words + i) + j) != '\0'; j++){
+					if (*(*(words + i) + j) == *(scheme + i + 1)){
+						AddToList(&list ,*(words + i));
+					}
+				}
+			}else{
+				for (j = 0; *(*(words + i) + j) != '\0'; j++){
+					if (*(*(words + i) + j) == *(scheme + i)){
+						AddToList(&list, *(words + i));
+					}
+				}
+			}
+		}
+
+	}
+}
+
+void AddToList(List **head, char *word){
+	List *cur = *head;
+	
+	if (cur == NULL){
+		cur = (List *)malloc(sizeof(List));
+		IsAllocated(cur);
+
+		cur->info = word;
+		cur->next = NULL;
+	}else{
+		cur->next = (List *)malloc(sizeof(List));
+		IsAllocated(cur->next);
+
+		cur->next->info = word;
+		cur->next->next = NULL;
 	}
 }
 
