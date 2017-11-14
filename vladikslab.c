@@ -52,31 +52,24 @@ void main(){
 
 	/* Добавлять слова только после проверки */
 
-	/* Алгоритм */
+	/* Алгоритм Хз что ето */
 	while (cur != NULL){
 		for (i = 0; *(scheme + i) != '.'; i++){
 			if (*(scheme + i) == '*'){
 				for (j = 0; *(*(words + i) + j) != '\0'; j++){
 					if (*(*(words + i) + j) == *(scheme + i + 1)){
-						fFound = 1;
 						AddToList(&list ,*(words + i));
 					}
 				}
-
-				if (!fFound) break;
 			}else{
 				for (j = 0; *(*(words + i) + j) != '\0'; j++){
 					if (*(*(words + i) + j) == *(scheme + i)){
-						fFound = 1;
 						AddToList(&list, *(words + i));
 					}
 				}
-
-				if (!fFound) break;
 			}
 		}
 
-		cur = cur->next;
 	}
 }
 
