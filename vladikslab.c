@@ -13,8 +13,11 @@ void main(){
 	
 	if (cur == NULL){
 		cur = (List *)malloc(sizeof(List));
+		/* Проверка */
 		if (cur == NULL) return;
+		
 		scanf("%i", &value);
+		
 		cur->val = value;
 		cur->next = NULL;
 	}
@@ -24,7 +27,9 @@ void main(){
 	while (1){
 		cur->next = (List *)malloc(sizeof(List));
 		if (cur->next == NULL) return;
+		
 		scanf("%i%c", &value, &c);
+		
 		cur->next->val = value;
 		cur->next->next = NULL;
 
