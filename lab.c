@@ -2,6 +2,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#define PATH "/test.txt"
+
 // Информация о слове.
 typedef struct Word{
 	char *word;
@@ -17,6 +19,7 @@ typedef struct List{
 
 // Прототипы.
 int CheckInput(char);
+int Write(char **, char);
 void IsAllocated(void *);
 void AddToBegin(List_t **, Word_t *);
 void AddBet(List_t *, List_t *, Word_t *);
@@ -28,25 +31,13 @@ void main(){
 	Word_t *aWords = NULL, **lastWord = NULL;
 	List_t **listHead = NULL, *queueHead = NULL, *currentList = NULL;
 	
-	char *sent = NULL, **words = NULL;
+	char *sent = NULL, **words = NULL, type;
 	int i, j = 0, k = 0, wordCounter = 0, oldLen = 0, fAdded = 0, listsA = 0;
 
-	// Записываем слова в предложение.
-	for (i = 0;; i++){
-		sent = (char*)realloc(sent, (i + 1) * sizeof(char));
-		scanf("%c", &sent[i]);
-		if (sent[i] == '.'){
-			sent[i] = '\0';
-			wordCounter++;
-			break;
-		}
-
-		// Разделители.
-		if (!CheckInput(sent[i]) && CheckInput(sent[i - 1]) && ((i - 1) >= 0)){
-			sent[i] = '\0';
-			wordCounter++;
-		}
-	}
+	printf("Choose type of input: f - file, k - keyboard\n");
+	scanf("%c", &type);
+	fflush(stdin);
+	wordCounter = Write(&sent, type);
 
 
 	// Записывает слова из предложения в новый массив.
@@ -286,4 +277,74 @@ void AddToBegin(List_t **head, Word_t *word){
 	new_el->word_S = word;
 	new_el->next = *head;
 	*head = new_el;
+}
+
+// Запись слов.
+int Write(char **sent, char type){
+	int i = 0, wordCounter = 0;
+
+	if (type == 'f'){
+		char c;
+		FILE *fl = NULL;
+
+
+		fl = fopen(PATH, "rt");
+
+		if (fl == NULL){
+			printf("\nFile cannot be opened!\n");
+			exit(0);
+		}
+
+		c = fgetc(fl);
+		(*sent) = (char *)malloc(sizeof(char));
+
+		while (c != EOF){
+			(*sent) = (char *)realloc((*sent), (i + 1) * sizeof(char));
+			*(*sent + i) = c;
+			c = fgetc(fl);
+
+			if (*(*sent + i) == '.'){
+				*(*sent + i) = '\0';
+				wordCounter++;
+				break;
+			}
+
+			// Разделители.
+			if (!CheckInput(*(*sent + i)) && CheckInput(*(*sent + i - 1)) && ((i - 1) >= 0)){
+				*(*sent + i) = '\0';
+				wordCounter++;
+			}
+			i++;
+		}
+
+		*(*sent + i) = '\0';
+
+		fclose(fl);
+	}
+	else if (type == 'k'){
+		printf("Input sentence.\n");
+
+		// Записываем слова в предложение.
+		for (i = 0;; i++){
+			(*sent) = (char*)realloc((*sent), (i + 1) * sizeof(char));
+			scanf("%c", &*(*sent + i));
+			if (*(*sent + i) == '.'){
+				*(*sent + i) = '\0';
+				wordCounter++;
+				break;
+			}
+
+			if (!CheckInput(*(*sent + i)) && CheckInput(*(*sent + i - 1)) && ((i - 1) >= 0)){
+				*(*sent + i) = '\0';
+				wordCounter++;
+			}
+		}
+
+	}
+	else{
+		printf("Undefined type of input!\n");
+		exit(0);
+	}
+
+	return wordCounter;
 }
