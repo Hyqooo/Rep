@@ -17,7 +17,6 @@ typedef struct List{
 	struct List *next;
 }List_t;
 
-// Прототипы.
 int CheckInput(char);
 int Write(char **, char);
 void IsAllocated(void *);
@@ -99,20 +98,12 @@ void main(){
 		while (queueHead != NULL){
 
 			fAdded = 0;
-
-			if (queueHead->word_S->lLet == (*(listHead + k))->word_S->fLet){
-				AddToBegin((listHead + k), queueHead->word_S);
-				DeleteSpec(&queueHead, queueHead);
-				
-				lastWord = &(queueHead->word_S);
-				fAdded = 1;
-			}
 			
 			currentList = *(listHead + k);
 
 			while (currentList->next != NULL){
 				if (queueHead != NULL){
-					if (queueHead->word_S->lLet == currentList->word_S->fLet &&
+					if (queueHead->word_S->lLet == currentList->next->word_S->fLet &&
 						queueHead->word_S->fLet == currentList->word_S->lLet){
 
 						AddBet(currentList, currentList->next, queueHead->word_S);
@@ -122,7 +113,22 @@ void main(){
 						fAdded = 1;
 					}
 				}
-				currentList = currentList->next;
+				if (!fAdded){
+					currentList = currentList->next;
+				}else{
+					currentList = *(listHead + k);
+					fAdded = 0;
+				}
+			}
+
+			if (queueHead != NULL){
+				if (queueHead->word_S->lLet == (*(listHead + k))->word_S->fLet){
+					AddToBegin((listHead + k), queueHead->word_S);
+					DeleteSpec(&queueHead, queueHead);
+
+					lastWord = &(queueHead->word_S);
+					fAdded = 1;
+				}
 			}
 
 			if (queueHead != NULL){
