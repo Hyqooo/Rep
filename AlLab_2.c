@@ -67,12 +67,15 @@ void main(int argc, char *argv[]){
 	IsAllocated(A);
 	for (i = 0; i < size; i++){
 		A[i] = (int*)malloc(size * sizeof(int));
-		IsAllocated(A[i]);
+		IsAllocated(A);
 	}
 
 	for (i = 0; i < size; i++){
 		for (j = 0; j < size; j++){
-			fscanf(f, "%d", &A[i][j]);
+			if (!fscanf(f, "%d", &A[i][j])){
+				printf("\nInvalid value!\n");
+				return;
+			}
 		}
 	}
 
@@ -432,9 +435,10 @@ int** GetAMinor(int **A, int str, int column, int size){
 			B[i_][j_] = A[i][j];
 		}
 	}
-	if (num == size) DisplayMatrix(B, size - 1);
-	printf("\n");
-
+	if (num == size){
+		DisplayMatrix(B, size - 1);
+		printf("\n");
+	}
 	return B;
 }
 
