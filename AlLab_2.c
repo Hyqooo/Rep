@@ -67,7 +67,7 @@ void main(int argc, char *argv[]){
 	IsAllocated(A);
 	for (i = 0; i < size; i++){
 		A[i] = (int*)malloc(size * sizeof(int));
-		IsAllocated(A);
+		IsAllocated(A[i]);
 	}
 
 	for (i = 0; i < size; i++){
