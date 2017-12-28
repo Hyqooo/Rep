@@ -6,7 +6,7 @@
 		1) Программа из потока получает входные параметры:
 			степень и коэффициенты многочлена и параметр точности аппроксимации
 			Точность аппроксимации - корни многочлена точности аппроксимации
-		2) Программа сокращает кратные корни многочлена:
+		-2) Программа сокращает кратные корни многочлена:
 			f(x) / (gcd(f(x), f'(x)))
 		3) Через ряд Штурма локализует корни на отрезке
 		4) Дальше методом биссекции находит корни с точностью аппроксимации
@@ -23,9 +23,11 @@
 
 /*  
 	TODO: Сделать рассчет производной, можно встроить в деление
-	TODO: Реализовать алгоритм Евклида(рекурсия?)
+	TODO: Реализовать алгоритм Евклида(Че, пацаны, рекурсия?)
 	TODO: Написать функцию Штурма, локализующую корни, при этом держать в голове доп. задание B
 	TODO: Не забыть освободить память из под многочлена
+
+	MEMORY: coeff, derCoeff
 */
 
 
@@ -33,10 +35,11 @@
 #include <stdlib.h>
 
 /* Прототипы */
-void Input(int, int);
+void Input(int);
+void Derivative(int *);
 
 /* Глобальные переменные */
-int power, *coeff, approx;
+int power, approx, *coeff, *derCoeff;
 int *eu_1, *eu_2;
 
 int main(){
@@ -52,7 +55,9 @@ int main(){
 	printf("\nDo you want to find rational roots? Y/N\n");
 	scanf("%c", &type_2);
 
-	Input(type_1, type_2);
+	Input(type_1);
+	Derivative(coeff);
+
 
 	printf("\n");
 	return 0;
@@ -64,7 +69,7 @@ void Input(int type_1){
 
 	if (type_1 == 'C'){
 		/* Коэффициентный ввод */
-		printf("\nInput power of the polynomial: ");
+		printf("\nInput power of the polynomial:\n");
 		if (!scanf("%d", &power)){
 			printf("\nPower should be a number!");
 			exit(0);
@@ -85,17 +90,6 @@ void Input(int type_1){
 				exit(0);
 			}
 		}
-
-		/* Вывод введенного многочлена */
-		printf("\nPolynomial: ");
-		for (i = 0, j = power; i < power + 1; i++, j--){
-			if (coeff[i] == 0) continue;
-		
-			if (j)
-				printf("%dx^%d", coeff[i], j);
-			else
-				printf("%d", coeff[i]);
-		}
 	}else if(type_1 == 'A'){
 		/* Аналитический ввод */
 		printf("Input polynomial:\n");
@@ -110,8 +104,19 @@ void Input(int type_1){
 		exit(0);
 	}
 
+	/* Вывод введенного многочлена */
+	printf("\nPolynomial: ");
+	for (i = 0, j = power; i < power + 1; i++, j--){
+		if (coeff[i] == 0) continue;
+
+		if (j)
+			printf("%dx^%d", coeff[i], j);
+		else
+			printf("%d", coeff[i]);
+	}
+
 	/* Параметр аппроксимации */
-	printf("Enter parameter of the approximation: ");
+	printf("\n\nEnter parameter of the approximation:\n");
 	if (!scanf("%d", &approx)){
 		printf("\nWrong parameter!");
 		exit(0);
@@ -127,7 +132,34 @@ void StringAnalyser(){
 	devend - делимое 
 	dever - делитель 
 */
-void AlgEuclid(int *devend, int *dever){
+void Gcd(int *devend, int *dever){
 
+}
+
+void Derivative(int *pol){
+	int i, j;
+
+	/* Память */
+	derCoeff = (int*)calloc((power + 1), sizeof(int));
+	if (!derCoeff){
+		printf("\nCannot allocate memory!");
+		exit(0);
+	}
+
+	/* Магия */
+	for (i = 0, j = power; i < power + 1; i++, j--){
+		if (pol[i] != 0) derCoeff[i] = pol[i] * j;
+	}
+
+	/* Вывод производной */
+	printf("\nDerivative: ");
+	for (i = 0, j = power - 1; i < power + 1; i++, j--){
+		if (derCoeff[i] == 0) continue;
+
+		if (j)
+			printf("%dx^%d", derCoeff[i], j);
+		else
+			printf("%d", derCoeff[i]);
+	}
 }
 
