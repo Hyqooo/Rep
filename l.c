@@ -20,15 +20,17 @@ typedef struct Fields{
 
 Tree_t *root;
 
+int preorder(Tree_t *, int);
 int inorder(Tree_t *, int);
+int postorder(Tree_t *, int);
 int treeHeight(Tree_t *, int);
 Tree_t* freeTree(Tree_t *);
 Tree_t* formTree(Tree_t *, FILE *, int);
 
+int height;
 
 int main(int argc, char *argv[]){
 	FILE *f = NULL;
-	int height;
 	char order[MAX_LENGTH];
 
 	f = fopen(argv[1], "r+");
@@ -52,9 +54,8 @@ int main(int argc, char *argv[]){
 	else
 		printf("Unknown order!");
 
-	//	inorder(root, height);
-	//	preorder(root, height);
 	fclose(f);
+	freeTree(root);
 	printf("\n");
 }
 
@@ -94,7 +95,20 @@ Tree_t* formTree(Tree_t *node, FILE *f, int pos){
 }	
 
 int preorder(Tree_t *root_e, int lvl){
-		
+	int i;
+
+	if (!root_e) return NOT_OK;
+
+	printf("\n");
+	if (root->rSon == root_e){
+		lvl += height / 2;
+		printf("\n\n");
+	}
+	for (i = 0; i < lvl; i++) printf("\t");
+	printf("%s", root_e->info);
+	preorder(root_e->lSon, lvl - 1);
+	preorder(root_e->rSon, lvl + 1);
+	return OK;
 }
 
 int inorder(Tree_t *root_e, int lvl){
@@ -107,10 +121,21 @@ int inorder(Tree_t *root_e, int lvl){
 	for (i = 0; i < lvl; i++) printf("\t");
 	printf("%s", root_e->info);
 	inorder(root_e->rSon, lvl - 1);
+	return OK;
 }
 
 int postorder(Tree_t *root_e, int lvl){
-	
+	int i;
+
+	if (root_e == NULL) return NOT_OK;
+
+	postorder(root_e->rSon, lvl - 1);
+	postorder(root_e->lSon, lvl + 1);
+	printf("\n");
+	for (i = 0; i < lvl; i++) printf("\t");
+	printf("%s", root_e->info);
+	if (lvl = height - 1) printf("\n\t");
+	return OK;
 }
 
 int treeHeight(Tree_t *root_e, int lvl){
