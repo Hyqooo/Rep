@@ -6,7 +6,7 @@
 #define OK 0
 #define NOT_OK 1;
 #define MAX_LENGTH 15
-
+ 
 typedef struct List{
 	int size;
 	char name[MAX_LENGTH];
