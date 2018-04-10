@@ -1,70 +1,3 @@
-/*  
-	Выпуклая оболочка. 
-
-	Библиотеки для моделирования на C:
-		1) DISLIN (Пойдет)
-
-	Проектирование:
-		Задание A (Convex Hull):
-			1) Ввод из файла точек трехмерного пространства c параметром V
-			2) Берет три точки и строит через них плоскость
-			3) Подставляет в уравнение плоскости оставшиеся точки 
-			4) Если все остальные точки имееют одинаковый знак, то эта плоскость - грань
-			5) Запоминает грань 
-			6) Проверяет нет ли линейных с этой гранью
-			5) Выводит в поток неравенство для грани
-
-		Задание B1 (Vertex Enumeration):
-			1) Ввод из файла коэффициентов неравенств 
-			2) Вывод системы в поток в форматированном виде
-			3) Найденные вершины выводит поток при этом давая им имена
-
-		Задание B2 (1-skeleton):
-			1) Если из файла подаются точки то выполняет задание A,
-			затем задание B1. Если подается система неравенств, то сразу B1
-			2) Строится полиэдральный граф
-			3) Вывести граф в двух форматах:
-				a) Матрица смежности
-				b) Каждой грани сопоставляются принадлежащие ей вершины и ребра
-					Пример:
-						Face: x + y + z <= 1
-						Verticies: B, C, D
-						Edges: BC, BD, CD
-			
-		Задание B3 (collision detection):
-			1) На вход подаются два файла с вершинами двух мноогранников
-			2) Считает разность Минковского 
-			TODO: Дополнить
-			3) Выводится сообщение о пересечении
-
-		Задание C:
-			Делает графический вывод построенной оболочки
-			TODO: Дополнить - какие данные нужны
-
-
-******************************************************************************************
-	
-	TODO: Разобраться с особенностями библиотеки, при необходимости найти другую
-	TODO: Спроектировать программу как можно тщательнее, разобраться со всеми нюансами
-	работы алгоритмов и вычислений
-	TODO: Обработчик ошибок
-	TODO: Чтобы опеределить является ли плоскость опорной нужно n^4 действий - оптимизировать
-	
-	UNDONE: Ввод координат вершин для двух файлов
-	UNDONE: Ввод точек, если не задан файл
-	DONE: Не умеет в 8 точек, возможно связано со свободным членом
-
-
-	DONE: Функция нахождения опорных плоскостей
-	DONE: Функция определения линейности
-	DONE: Функция, печатающая неравенства
-
-******************************************************************************************
-		
-		Выяснить количество граней в многограннике на n вершинах
-
-*/
-
 #define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
 #include <string.h>
@@ -93,13 +26,25 @@ int consoleInput();
 int fileInput(int, char *[]);
 int determineFaces(int);
 int linearDep(int, ineq_t);
-void printInequalities(int);
+int swap(int **, int, int, int);
+int findMin(int **, int, int);
+void printInequalities(int, int);
+void reverse(int **);
+void vertexEnum();
+void printPoints();
+void printAdjacencyMatrix();
+void printFaceInfo();
+int gauss(int **);
+int checkPoint(point_t);
+int graph();
+point_t determinePoints(ineq_t, ineq_t, ineq_t);
 
 // Глобальные переменные
-int ineqCount;
+int ineqCount, pointsCount;
 char xyz[] = {'x', 'y', 'z', '\0'};
 point_t *pointsArray;
 ineq_t *ineqArray;
+int **adjacencyMatrix;
 
 int main(int argc, char *argv[]){
 	manage(argc, argv);
@@ -146,8 +91,10 @@ int fileInput(int argc, char *argv[]){
 
 		if (strcmp(type, "V") == 0){
 			// Память под массив точек
-			pointsArray = (point_t*)malloc(arraySize * sizeof(point_t));
+			pointsArray = (point_t*)malloc((arraySize + 1) * sizeof(point_t));
 			if (!pointsArray) return 1;
+
+			pointsCount = arraySize;
 
 			// Дано множество точек
 			for (i = 0; fscanf(f, "%d%d%d", &point.x, &point.y, &point.z) != EOF; i++){
@@ -159,13 +106,19 @@ int fileInput(int argc, char *argv[]){
 
 			// Вызывает функцию нахождения граней
 			determineFaces(arraySize);
+			
+			// Вывод
+			printInequalities(0, ineqCount);
+
+			skeleton();
 		}else if (strcmp(type, "H") == 0){
 			// Память под неравенства 
 			ineqArray = (ineq_t*)malloc(arraySize * sizeof(ineq_t));
 			if (!ineqArray) return 1;
 
+			ineqCount = arraySize;
+
 			// Дана система неравенств
-			printf("Inequalities:\n");
 			for (i = 0; fscanf(f, "%d%d%d%d", &ineq.coeffs[0], &ineq.coeffs[1],
 				&ineq.coeffs[2], &ineq.free) != EOF; i++){
 
@@ -173,10 +126,12 @@ int fileInput(int argc, char *argv[]){
 				ineqArray[i].coeffs[1] = ineq.coeffs[1];
 				ineqArray[i].coeffs[2] = ineq.coeffs[2];
 				ineqArray[i].free = ineq.free;
-
-				// Вывод неравенств в поток
-				printInequalities(arraySize);
 			}
+
+			// Вывод неравенств в поток
+			printInequalities(0, ineqCount);
+			vertexEnum();
+			printPoints();
 		}else{
 			// Непонятно что дано на вход
 			return 1;
@@ -187,11 +142,11 @@ int fileInput(int argc, char *argv[]){
 	}
 }
 
-void printInequalities(int arraySize){
+void printInequalities(int start, int arraySize){
 	int i, j;
 
-	printf("Number of faces: %d\n", ineqCount);
-	for (i = 0; i < ineqCount; i++){
+	printf("\n\nFace:\n");
+	for (i = start; i < arraySize; i++){
 		for (j = 0; j < 3; j++){
 			if (ineqArray[i].coeffs[j] == 1 || ineqArray[i].coeffs[j] == -1){
 				if (ineqArray[i].coeffs[j] == 1){
@@ -286,9 +241,6 @@ int determineFaces(int arraySize){
 		}
 	}
 
-	// Вывод
-	printInequalities(arraySize);
-
 	return 0;
 }
 
@@ -340,14 +292,306 @@ int linearDep(int arraySize, ineq_t cmp){
 
 #pragma region VERTEX ENUMERATION (B1)
 
-	
+// Пересечь по тройкам все возможные неравенства 
+void vertexEnum(){
+	int i, j, k;
+	point_t point;
 
+	pointsArray = (point_t*)calloc((ineqCount * 2), sizeof(point_t));
+	if (!pointsArray) return;
+
+	for (i = 0; i < ineqCount; i++){
+		for (j = 0; j < ineqCount; j++){
+			if (j <= i) continue;
+			for (k = 0; k < ineqCount; k++){
+				if (k <= i || k <= j) continue;
+				point = determinePoints(ineqArray[i], ineqArray[j], ineqArray[k]);
+				if (checkPoint(point) == 0){
+					printf("\nGOT IT!%d %d %d\n", point.x, point.y, point.z);
+					pointsArray[pointsCount] = point;
+					pointsCount++;
+				}
+			}
+		}
+	}
+}
+
+// Проверяет есть ли уже такая точка
+int checkPoint(point_t point){
+	int i;
+
+	for (i = 0; i < pointsCount; i++){
+		if (pointsArray[i].x == point.x && pointsArray[i].y == point.y &&
+			pointsArray[i].z == point.z)
+			return 1;
+	}
+
+	return 0;
+}
+
+point_t determinePoints(ineq_t ineq_1, ineq_t ineq_2, ineq_t ineq_3){
+	int **tempArray = NULL, i, j;
+	point_t point;
+	
+	// Память
+	tempArray = (int**)malloc(ineqCount * sizeof(int*));
+	if (!tempArray) /* Вызвать функцию обработки ошибок */;
+	for (i = 0; i < ineqCount; i++){
+		tempArray[i] = (int*)malloc(3 * sizeof(int));
+		if (!tempArray[i]) /* Обработчик ошибок */;
+	}
+
+	// Перепишем в массив
+	for (i = 0; i < 3; i++){
+		tempArray[0][i] = ineq_1.coeffs[i];
+		tempArray[1][i] = ineq_2.coeffs[i];
+		tempArray[2][i] = ineq_3.coeffs[i];
+	}
+	tempArray[0][i] = ineq_1.free;
+	tempArray[1][i] = ineq_2.free;
+	tempArray[2][i] = ineq_3.free;
+
+	if (gauss(tempArray) == 1){
+		point = pointsArray[pointsCount];
+	}else{
+		for (i = 0; i < 3; i++){
+			for (j = 0; j < 3; j++){
+				if (tempArray[i][j] != 0){
+					if (i == 0){
+						point.x = tempArray[0][3] / tempArray[i][j];
+					}else if (i == 1){
+						point.y = tempArray[1][3] / tempArray[i][j];
+					}else if (i == 2){
+						point.z = tempArray[2][3] / tempArray[i][j];
+					}
+				}
+			}
+		}
+	}
+
+	// Освободить память
+	for (i = 0; i < 3; i++){
+		free(tempArray[i]);
+	}
+	free(tempArray);
+
+	return point;
+}
+
+int gauss(int **tempArray){
+	int i, j, k, mult, lead;
+
+	printf("\nBefore\n");
+	for (i = 0; i < 3; i++){
+		for (j = 0; j < 4; j++){
+			printf("%d ", tempArray[i][j]);
+		}
+		printf("\n");
+	}
+
+	for (i = 0; i < 3; i++){
+		if(findMin(tempArray, 3, i) == 0) continue;
+		lead = tempArray[i][i];
+		for (j = i; j < 3; j++){
+			if (j + 1 < 3){
+				if (tempArray[j + 1][i] % lead != 0){
+					for (k = i; k < 4; k++){
+						tempArray[j + 1][k] *= lead;
+					}
+				}
+
+				mult = tempArray[j + 1][i] / lead;
+				tempArray[j + 1][i] -= mult * lead;
+				for (k = i + 1; k < 4; k++){
+					if (mult >= 0){
+						tempArray[j + 1][k] -= mult * tempArray[i][k];
+					}else{
+						tempArray[j + 1][k] += -mult * tempArray[i][k];
+					}
+				}
+			}
+		}
+	}
+
+	// Придумать способ получше
+	for (i = 1; i < 3; i++){
+		if (findMin(tempArray, 3, i) == 0) continue;
+		lead = tempArray[i][i];
+		for (j = i; j > 0; j--){
+			if (tempArray[j - 1][i] % lead != 0){
+				for (k = 0; k < 4; k++){
+					tempArray[j - 1][k] *= lead;
+				}
+			}
+
+			mult = tempArray[j - 1][i] / lead;
+			tempArray[j - 1][i] -= mult * lead;
+			for (k = i + 1; k < 4; k++){
+				if (mult >= 0){
+					tempArray[j - 1][k] -= mult * tempArray[i][k];
+				}else{
+					tempArray[j - 1][k] += -mult * tempArray[i][k];
+				}
+			}
+		}
+	}
+
+	printf("\nAfter_2\n");
+	for (i = 0; i < 3; i++){
+		for (j = 0; j < 4; j++){
+			printf("%d ", tempArray[i][j]);
+		}
+		printf("\n");
+	}
+
+	// Проверить имеет ли система решения
+	for (i = 0; i < 3; i++){
+		if (tempArray[i][0] == 0 && tempArray[i][1] == 0 && tempArray[i][2] == 0)
+			return 1;
+	}
+
+	return 0;
+}
+
+// Распечатывает точки с индексами
+void printPoints(){
+	int i, j = 0;
+	char c = 'A';
+
+	printf("\nPoints: %d\n", pointsCount);
+	for (i = 0; i < pointsCount; i++){
+		printf("%c(%d): %d %d %d\n", c++, j, pointsArray[i].x, pointsArray[i].y, pointsArray[i].z);
+		if (i == 27 * (j + 1) - 2){
+			c = 'A';
+			j++;
+		}
+	}
+}
+
+int findMin(int **A, int size, int lvl){
+	int i, min = 0, row = lvl, column = lvl;
+
+	// Первый ненулевой элемент
+	for (i = lvl; i < size; i++){
+		if (A[i][lvl] != 0){
+			min = A[i][lvl];
+			row = i;
+			column = lvl;
+			break;
+		}
+	}
+
+	if (min == 0) return 0;
+	
+	return swap(A, size, lvl, row);
+}
+
+int swap(int **A, int size, int s1, int s2){
+	int t, i;
+
+	/* Swap rows */
+	if (s1 != s2){
+		for (i = 0; i < size + 1; i++){
+			t = A[s1][i];
+			A[s1][i] = A[s2][i];
+			A[s2][i] = t;
+		}
+	}
+
+	return 1;
+}
 
 #pragma endregion
 
 #pragma region 1-SKELETON (B2)
-		
-	
+
+int skeleton(){
+	int i;
+
+	// Память
+	adjacencyMatrix = (int**)calloc(pointsCount, sizeof(int*));
+	if (!adjacencyMatrix) return 1;
+	for (i = 0; i < pointsCount; i++){
+		adjacencyMatrix[i] = (int*)calloc(pointsCount, sizeof(int));
+		if (!adjacencyMatrix) return 1;
+	}
+
+	graph();
+}
+
+int graph(){
+	int i, j, k, t, res_1, res_2, count;
+	int edgePoints[15];
+
+	for (i = 0; i < ineqCount; i++){
+		printInequalities(i, i + 1);
+		printf("Edges: ");
+		count = 0;
+		for (j = 0; j < ineqCount; j++){
+			for (k = 0; k < pointsCount; k++){
+				res_1 = 
+					ineqArray[i].coeffs[0] * pointsArray[k].x + 
+					ineqArray[i].coeffs[1] * pointsArray[k].y +
+					ineqArray[i].coeffs[2] * pointsArray[k].z +
+					ineqArray[i].free;
+				res_2 =
+					ineqArray[j].coeffs[0] * pointsArray[k].x +
+					ineqArray[j].coeffs[1] * pointsArray[k].y +
+					ineqArray[j].coeffs[2] * pointsArray[k].z +
+					ineqArray[j].free;
+
+				if (res_1 == 0 && res_2 == 0){
+					for (t = 0; t < count + 1; t++){
+						if (k == edgePoints[t]) break;
+					}
+					if (t == count + 1){
+						edgePoints[count] = k;
+						count++;
+					}
+				}
+			}
+			if (count != 0){
+				adjacencyMatrix[edgePoints[count - 2]][edgePoints[count - 1]] = 1;
+				adjacencyMatrix[edgePoints[count - 1]][edgePoints[count - 2]] = 1;
+			}
+		}
+		printFaceInfo(edgePoints, count);
+		for (j = 0; j < 15; j++) edgePoints[j] = -1;
+	}
+
+	printAdjacencyMatrix();
+
+	return 0;
+}
+
+void printAdjacencyMatrix(){
+	int i, j;
+
+	printf("\n\nAdjacency matrix:\n  ");
+	for (i = 0; i < pointsCount; i++) printf("%c ", 'A' + i);
+	for (i = 0; i < pointsCount; i++){
+		printf("\n%c ", 'A' + i);
+		for (j = 0; j < pointsCount; j++){
+			printf("%d ", adjacencyMatrix[i][j]);
+		}
+	}
+	printf("\n");
+}
+
+void printFaceInfo(int edgePoints[15], int count){
+	int i;
+
+	for (i = 1; i < count; i++){
+		printf("%c%c ", 'A' + edgePoints[i - 1], 'A' + edgePoints[i]);
+	}
+	adjacencyMatrix[edgePoints[0]][edgePoints[i - 1]] = 1;
+	adjacencyMatrix[edgePoints[i - 1]][edgePoints[0]] = 1;
+	printf("%c%c", 'A' + edgePoints[0], 'A' + edgePoints[i - 1]);
+	printf("\nVertices: ");
+	for (i = 0; i < count; i++){
+		printf("%c ", 'A' + edgePoints[i]);
+	}
+}
 
 #pragma endregion
 
