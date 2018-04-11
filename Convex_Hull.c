@@ -28,6 +28,7 @@ int determineFaces(int);
 int linearDep(int, ineq_t);
 int swap(int **, int, int, int);
 int findMin(int **, int, int);
+int skeleton();
 void printInequalities(int, int);
 void reverse(int **);
 void vertexEnum();
@@ -110,6 +111,7 @@ int fileInput(int argc, char *argv[]){
 			// Вывод
 			printInequalities(0, ineqCount);
 
+			// Строим граф
 			skeleton();
 		}else if (strcmp(type, "H") == 0){
 			// Память под неравенства 
@@ -517,17 +519,20 @@ int skeleton(){
 	}
 
 	graph();
+
+	return 0;
 }
 
 int graph(){
-	int i, j, k, t, res_1, res_2, count;
+	int i, j, k, res_1, res_2, count;
 	int edgePoints[15];
 
 	for (i = 0; i < ineqCount; i++){
 		printInequalities(i, i + 1);
-		printf("Edges: ");
 		count = 0;
+		printf("\nEdges: ");
 		for (j = 0; j < ineqCount; j++){
+			if (i == j) continue;
 			for (k = 0; k < pointsCount; k++){
 				res_1 = 
 					ineqArray[i].coeffs[0] * pointsArray[k].x + 
@@ -541,20 +546,19 @@ int graph(){
 					ineqArray[j].free;
 
 				if (res_1 == 0 && res_2 == 0){
-					for (t = 0; t < count + 1; t++){
-						if (k == edgePoints[t]) break;
-					}
-					if (t == count + 1){
-						edgePoints[count] = k;
-						count++;
-					}
+					edgePoints[count] = k;
+					count++;
 				}
 			}
-			if (count != 0){
+			if (count % 2 == 0 && count != 0){
 				adjacencyMatrix[edgePoints[count - 2]][edgePoints[count - 1]] = 1;
 				adjacencyMatrix[edgePoints[count - 1]][edgePoints[count - 2]] = 1;
+			}else if (count != 0){
+				count--;
+				edgePoints[count] = -1;
 			}
 		}
+
 		printFaceInfo(edgePoints, count);
 		for (j = 0; j < 15; j++) edgePoints[j] = -1;
 	}
@@ -579,17 +583,28 @@ void printAdjacencyMatrix(){
 }
 
 void printFaceInfo(int edgePoints[15], int count){
-	int i;
+	int i, j;
 
-	for (i = 1; i < count; i++){
-		printf("%c%c ", 'A' + edgePoints[i - 1], 'A' + edgePoints[i]);
+	for (i = 0; i < count; i++){
+		if (i % 2 == 0){
+			if (edgePoints[i] != -1 && edgePoints[i + 1] != -1)
+				printf("%c%c ", 'A' + edgePoints[i], 'A' + edgePoints[i + 1]);
+			for (j = i + 1; j < count; j++){
+				if (edgePoints[j] == edgePoints[i] && edgePoints[j + 1] == edgePoints[i + 1])
+					edgePoints[j] = -1;
+			}
+		}
 	}
-	adjacencyMatrix[edgePoints[0]][edgePoints[i - 1]] = 1;
-	adjacencyMatrix[edgePoints[i - 1]][edgePoints[0]] = 1;
-	printf("%c%c", 'A' + edgePoints[0], 'A' + edgePoints[i - 1]);
+
 	printf("\nVertices: ");
 	for (i = 0; i < count; i++){
-		printf("%c ", 'A' + edgePoints[i]);
+		if (edgePoints[i] != -1)
+			printf("%c ", 'A' + edgePoints[i]);
+		for (j = i + 1; j < count; j++){
+			if (edgePoints[j] == edgePoints[i]){
+				edgePoints[j] = -1;
+			}
+		}
 	}
 }
 
