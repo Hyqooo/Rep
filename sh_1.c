@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define NOT_OK 1
+#define NOT_OK 1 
 #define OK 0
 #define MAX_LENGTH 20
 
