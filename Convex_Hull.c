@@ -29,6 +29,8 @@ int linearDep(int, ineq_t);
 int swap(int **, int, int, int);
 int findMin(int **, int, int);
 int skeleton();
+int checkVertices();
+int collisionDetection();
 void printInequalities(int, int);
 void reverse(int **);
 void vertexEnum();
@@ -77,7 +79,7 @@ int consoleInput(){
 
 // Файловый ввод
 int fileInput(int argc, char *argv[]){
-	FILE *f = NULL;
+	FILE *f = NULL, *f2 = NULL;
 	int arraySize, i;
 	char type[10];
 	point_t point;
@@ -139,8 +141,21 @@ int fileInput(int argc, char *argv[]){
 			return 1;
 		}
 	}else{
+		
 		// Читает два файла
+		f = fopen(argv[1], "r");
+		if (!f) return 1;
 
+		f2 = fopen(argv[2], "r");
+		if (!f2) return 1;
+
+		if (collisionDetection(f, f2) == 0)
+			printf("Collision detected!\n");
+		else
+			printf("Hulls doesn't collide!\n");
+
+		fclose(f);
+		fclose(f2);
 	}
 }
 
@@ -292,7 +307,7 @@ int linearDep(int arraySize, ineq_t cmp){
 
 #pragma endregion
 
-#pragma region VERTEX ENUMERATION (B1)
+#pragma region VERTEX ENUMERATION (B1)(DONE)
 
 // Пересечь по тройкам все возможные неравенства 
 void vertexEnum(){
@@ -309,13 +324,14 @@ void vertexEnum(){
 				if (k <= i || k <= j) continue;
 				point = determinePoints(ineqArray[i], ineqArray[j], ineqArray[k]);
 				if (checkPoint(point) == 0){
-					printf("\nGOT IT!%d %d %d\n", point.x, point.y, point.z);
 					pointsArray[pointsCount] = point;
 					pointsCount++;
 				}
 			}
 		}
 	}
+
+	checkVertices();
 }
 
 // Проверяет есть ли уже такая точка
@@ -354,7 +370,7 @@ point_t determinePoints(ineq_t ineq_1, ineq_t ineq_2, ineq_t ineq_3){
 	tempArray[2][i] = ineq_3.free;
 
 	if (gauss(tempArray) == 1){
-		point = pointsArray[pointsCount];
+		point = pointsArray[pointsCount - 1];
 	}else{
 		for (i = 0; i < 3; i++){
 			for (j = 0; j < 3; j++){
@@ -372,24 +388,16 @@ point_t determinePoints(ineq_t ineq_1, ineq_t ineq_2, ineq_t ineq_3){
 	}
 
 	// Освободить память
-	for (i = 0; i < 3; i++){
-		free(tempArray[i]);
-	}
-	free(tempArray);
+//	for (i = 0; i < ineqCount; i++){
+//		free(tempArray[i]);
+//	}
+//	free(tempArray);
 
 	return point;
 }
 
 int gauss(int **tempArray){
 	int i, j, k, mult, lead;
-
-	printf("\nBefore\n");
-	for (i = 0; i < 3; i++){
-		for (j = 0; j < 4; j++){
-			printf("%d ", tempArray[i][j]);
-		}
-		printf("\n");
-	}
 
 	for (i = 0; i < 3; i++){
 		if(findMin(tempArray, 3, i) == 0) continue;
@@ -438,14 +446,6 @@ int gauss(int **tempArray){
 		}
 	}
 
-	printf("\nAfter_2\n");
-	for (i = 0; i < 3; i++){
-		for (j = 0; j < 4; j++){
-			printf("%d ", tempArray[i][j]);
-		}
-		printf("\n");
-	}
-
 	// Проверить имеет ли система решения
 	for (i = 0; i < 3; i++){
 		if (tempArray[i][0] == 0 && tempArray[i][1] == 0 && tempArray[i][2] == 0)
@@ -463,7 +463,7 @@ void printPoints(){
 	printf("\nPoints: %d\n", pointsCount);
 	for (i = 0; i < pointsCount; i++){
 		printf("%c(%d): %d %d %d\n", c++, j, pointsArray[i].x, pointsArray[i].y, pointsArray[i].z);
-		if (i == 27 * (j + 1) - 2){
+		if (i == 26 * (j + 1) - 1){
 			c = 'A';
 			j++;
 		}
@@ -503,9 +503,67 @@ int swap(int **A, int size, int s1, int s2){
 	return 1;
 }
 
+// Проверяет принадлежность найденных вершин многограннику
+int checkVertices(){
+	int i, j, res, point_n, pos_n, neg_n;
+	int *results = NULL;
+
+	// Память
+	results = (int *)malloc(pointsCount * sizeof(int));
+	if (!results) return 1;
+
+	for (i = 0; i < ineqCount; i++){
+		point_n = -1;
+		for (j = 0; j < pointsCount; j++){
+			res = ineqArray[i].coeffs[0] * pointsArray[j].x +
+				ineqArray[i].coeffs[1] * pointsArray[j].y +
+				ineqArray[i].coeffs[2] * pointsArray[j].z +
+				ineqArray[i].free;
+
+			results[j] = res;
+		}
+
+		neg_n = pos_n = 0;
+		for (j = 0; j < pointsCount; j++){
+			if (results[j] > 0){
+				pos_n++;
+			}else if(results[j] < 0){
+				neg_n++;
+			}
+		}
+
+		if (pos_n > neg_n){
+			for (j = 0; j < pointsCount; j++){
+				if (results[j] < 0){
+					point_n = j;
+					break;
+				}
+			}
+		}else{
+			for (j = 0; j < pointsCount; j++){
+				if (results[j] > 0){
+					point_n = j;
+					break;
+				}
+			}
+		}
+
+		if (point_n == -1) continue;
+
+		for (j = point_n; j < pointsCount; j++){
+			if (j + 1 < pointsCount){
+				pointsArray[j] = pointsArray[j + 1];
+			}
+		}
+		pointsCount--;
+	}
+
+	return 0;
+}
+
 #pragma endregion
 
-#pragma region 1-SKELETON (B2)
+#pragma region 1-SKELETON (B2)(DONE)
 
 int skeleton(){
 	int i;
@@ -610,9 +668,55 @@ void printFaceInfo(int edgePoints[15], int count){
 
 #pragma endregion
 
-#pragma region COLLISION DETECTION (B3)
+#pragma region COLLISION DETECTION (B3)(DONE)
 
+int collisionDetection(FILE *f, FILE *f2){
+	int size_1, size_2, posToBack, i, j, res, null_res;
+	point_t pnt_1, pnt_2;
+
+	fscanf(f, "%*s%d", &size_1);
+	fscanf(f2, "%*s%d", &size_2);
+
+	pointsArray = (point_t*)malloc((size_1 * size_2) * sizeof(point_t));
+	if (!pointsArray) return 1;
+
+	posToBack = ftell(f2);
+	while (fscanf(f, "%d%d%d", &pnt_1.x, &pnt_1.y, &pnt_1.z) != EOF){
+		while (fscanf(f2, "%d%d%d", &pnt_2.x, &pnt_2.y, &pnt_2.z) != EOF){
+			pointsArray[pointsCount].x = pnt_1.x - pnt_2.x;
+			pointsArray[pointsCount].y = pnt_1.y - pnt_2.y;
+			pointsArray[pointsCount].z = pnt_1.z - pnt_2.z;
+			pointsCount++;
+		}
+		fseek(f2, posToBack, SEEK_SET);
+	}
+
+	determineFaces(size_1 * size_2);
+
+	// Проверяем принадлежит ли ноль оболочке
+	for (i = 0; i < ineqCount; i++){
+		null_res = ineqArray[i].free;
+		for (j = 0; j < pointsCount;){
+			res =
+				ineqArray[i].coeffs[0] * pointsArray[j].x +
+				ineqArray[i].coeffs[1] * pointsArray[j].y +
+				ineqArray[i].coeffs[2] * pointsArray[j].z +
+				ineqArray[i].free;
+			
+			if (res == 0)
+				j++;
+			else
+				break;
+		}
 	
+		if (null_res != 0){
+			if (res / abs(res) != null_res / abs(null_res))
+				return 1;
+		}
+	}
+
+	return 0;
+}
 
 #pragma endregion
 
