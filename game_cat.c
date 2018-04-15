@@ -134,7 +134,8 @@ int findPath(){
 		for (i = -1; i < 2; i++){
 			for (j = -1; j < 2; j++){
 				if (field[start.y + i][start.x + j] != '#' && 
-					pathField[start.y + i][start.x + j] == 0){
+					pathField[start.y + i][start.x + j] == 0 &&
+					!(i != 0 && j != 0)){
 
 					pathField[start.y + i][start.x + j] = distance + 1;
 					enqueue(start.x + j, start.y + i);
@@ -288,13 +289,6 @@ void printField(){
 				else
 					printf("%c", field[i][j]);
 			}
-		}
-		printf("\n");
-	}
-
-	for (i = 0; i < MAX_HEIGTH; i++){
-		for (j = 0; j < MAX_WEIDTH; j++){
-			printf("%d", pathField[i][j]);
 		}
 		printf("\n");
 	}
