@@ -54,7 +54,6 @@ void game(){
 	
  	while (1){
 		symbol = _getch();
-		if (symbol == '1') break;
 		
 		if (symbol == 'a' || symbol == 'A'){
 			player.x--;
