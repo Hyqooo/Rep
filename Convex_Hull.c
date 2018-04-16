@@ -33,7 +33,7 @@ int checkVertices();
 int collisionDetection();
 void printInequalities(int, int);
 void reverse(int **);
-void vertexEnum();
+void vertexEnum(FILE *);
 void printPoints();
 void printAdjacencyMatrix();
 void printFaceInfo();
@@ -43,7 +43,7 @@ int graph();
 point_t determinePoints(ineq_t, ineq_t, ineq_t);
 
 // Глобальные переменные
-int ineqCount, pointsCount;
+int ineqCount, pointsCount, **tempArray;
 char xyz[] = { 'x', 'y', 'z', '\0' };
 point_t *pointsArray;
 ineq_t *ineqArray;
@@ -113,6 +113,9 @@ int fileInput(int argc, char *argv[]){
 
 			// Вывод
 			printInequalities(0, ineqCount);
+
+			free(pointsArray);
+			pointsArray = NULL;
 		}else if (strcmp(type, "H") == 0){
 			// Память под неравенства 
 			ineqArray = (ineq_t*)malloc(arraySize * sizeof(ineq_t));
@@ -133,13 +136,12 @@ int fileInput(int argc, char *argv[]){
 			// Вывод неравенств в поток
 			printInequalities(0, ineqCount);
 			printPoints();
-		}
-		else{
+		}else{
 			// Непонятно что дано на вход
 			return 1;
 		}
 
-		vertexEnum();
+		vertexEnum(f);
 		// Строим граф
 		skeleton();
 	}else{
@@ -211,9 +213,9 @@ int determineFaces(int arraySize){
 				vect_2.z = pointsArray[k].z - pointsArray[i].z;
 
 				// Задаем плоскость
-				temp.coeffs[0] = vect_1.y * vect_2.z - vect_1.z * vect_2.y;
-				temp.coeffs[1] = -(vect_1.x * vect_2.z - vect_1.z * vect_2.x);
-				temp.coeffs[2] = vect_1.x * vect_2.y - vect_1.y * vect_2.x;
+				temp.coeffs[0] = (vect_1.y * vect_2.z - vect_1.z * vect_2.y);
+				temp.coeffs[1] = (-(vect_1.x * vect_2.z - vect_1.z * vect_2.x));
+				temp.coeffs[2] = (vect_1.x * vect_2.y - vect_1.y * vect_2.x);
 				temp.free = -(
 					temp.coeffs[0] * pointsArray[i].x +
 					temp.coeffs[1] * pointsArray[i].y +
@@ -271,16 +273,16 @@ int linearDep(int arraySize, ineq_t cmp){
 		fNotLinear = 0;
 		for (j = 0; j < 3; j++){
 			if (ineqArray[i].coeffs[j] != 0){
-				ratio = cmp.coeffs[j] / ineqArray[i].coeffs[j];
+				ratio = (double)cmp.coeffs[j] / ineqArray[i].coeffs[j];
 			}
 		}
 		if (ineqArray[i].free != 0 && j == 3){
-			ratio = cmp.free / ineqArray[i].free;
+			ratio = (double)cmp.free / ineqArray[i].free;
 		}
 
 		for (j = 0; j < 3; j++){
 			if (ineqArray[i].coeffs[j] != 0){
-				if (ratio != cmp.coeffs[j] / ineqArray[i].coeffs[j]){
+				if (ratio - (double)cmp.coeffs[j] / ineqArray[i].coeffs[j] > EPSILON){
 					fNotLinear = 1;
 					break;
 				}
@@ -292,7 +294,7 @@ int linearDep(int arraySize, ineq_t cmp){
 		}
 
 		if (ineqArray[i].free != 0){
-			if (ratio != cmp.free / ineqArray[i].free){
+			if (ratio - (double)cmp.free / ineqArray[i].free > EPSILON){
 				continue;
 			}
 		}
@@ -311,13 +313,20 @@ int linearDep(int arraySize, ineq_t cmp){
 #pragma region VERTEX ENUMERATION (B1)(DONE)
 
 // Пересечь по тройкам все возможные неравенства 
-void vertexEnum(){
+void vertexEnum(FILE *f){
 	int i, j, k;
 	point_t point;
 
-	if (!pointsArray){
-		pointsArray = (point_t*)calloc((ineqCount * 2), sizeof(point_t));
-		if (!pointsArray) return;
+	pointsCount = 0;
+	pointsArray = (point_t*)calloc((ineqCount * 4), sizeof(point_t));
+	if (!pointsArray) return;
+
+	// Память
+	tempArray = (int**)malloc(3 * sizeof(int*));
+	if (!tempArray) return;
+	for (i = 0; i < 3; i++){
+		tempArray[i] = (int*)malloc(4 * sizeof(int));
+		if (!tempArray[i]) return;
 	}
 
 	for (i = 0; i < ineqCount; i++){
@@ -334,7 +343,16 @@ void vertexEnum(){
 		}
 	}
 
+	sortPoints(f);
 	checkVertices();
+	sortPoints(f);
+	printPoints();
+
+	// Освободить память
+	for (i = 0; i < 3; i++){
+		free(tempArray[i]);
+	}
+	free(tempArray);
 }
 
 // Проверяет есть ли уже такая точка
@@ -351,16 +369,8 @@ int checkPoint(point_t point){
 }
 
 point_t determinePoints(ineq_t ineq_1, ineq_t ineq_2, ineq_t ineq_3){
-	int **tempArray = NULL, i, j;
+	int i, j;
 	point_t point;
-
-	// Память
-	tempArray = (int**)malloc(ineqCount * sizeof(int*));
-	if (!tempArray) /* Вызвать функцию обработки ошибок */;
-	for (i = 0; i < ineqCount; i++){
-		tempArray[i] = (int*)malloc(3 * sizeof(int));
-		if (!tempArray[i]) /* Обработчик ошибок */;
-	}
 
 	// Перепишем в массив
 	for (i = 0; i < 3; i++){
@@ -393,12 +403,6 @@ point_t determinePoints(ineq_t ineq_1, ineq_t ineq_2, ineq_t ineq_3){
 			}
 		}
 	}
-
-	// Освободить память
-	//	for (i = 0; i < ineqCount; i++){
-	//		free(tempArray[i]);
-	//	}
-	//	free(tempArray);
 
 	return point;
 }
@@ -514,7 +518,7 @@ int swap(int **A, int size, int s1, int s2){
 
 // Проверяет принадлежность найденных вершин многограннику
 int checkVertices(){
-	int i, j, res, point_n, pos_n, neg_n;
+	int i, j, k, res, res_to_ctrl, pos_n, neg_n;
 	int *results = NULL;
 
 	// Память
@@ -522,7 +526,15 @@ int checkVertices(){
 	if (!results) return 1;
 
 	for (i = 0; i < ineqCount; i++){
-		point_n = -1;
+		for (j = 0; j < pointsCount; j++){
+			res_to_ctrl = ineqArray[i].coeffs[0] * pointsArray[j].x +
+				ineqArray[i].coeffs[1] * pointsArray[j].y +
+				ineqArray[i].coeffs[2] * pointsArray[j].z +
+				ineqArray[i].free;
+
+			if (res_to_ctrl != 0) break;
+		}
+
 		for (j = 0; j < pointsCount; j++){
 			res = ineqArray[i].coeffs[0] * pointsArray[j].x +
 				ineqArray[i].coeffs[1] * pointsArray[j].y +
@@ -532,44 +544,43 @@ int checkVertices(){
 			results[j] = res;
 		}
 
-		neg_n = pos_n = 0;
 		for (j = 0; j < pointsCount; j++){
-			if (results[j] > 0){
-				pos_n++;
-			}
-			else if (results[j] < 0){
-				neg_n++;
-			}
-		}
-
-		if (pos_n > neg_n){
-			for (j = 0; j < pointsCount; j++){
-				if (results[j] < 0){
-					point_n = j;
-					break;
+			if (results[j] != 0 && res_to_ctrl / abs(res_to_ctrl) != results[j] / abs(results[j])){
+				for (k = j; k < pointsCount; k++){
+					if (k + 1 < pointsCount){
+						pointsArray[k] = pointsArray[k + 1];
+					}
 				}
+				pointsCount--;
+				j--;
 			}
 		}
-		else{
-			for (j = 0; j < pointsCount; j++){
-				if (results[j] > 0){
-					point_n = j;
-					break;
-				}
-			}
-		}
-
-		if (point_n == -1) continue;
-
-		for (j = point_n; j < pointsCount; j++){
-			if (j + 1 < pointsCount){
-				pointsArray[j] = pointsArray[j + 1];
-			}
-		}
-		pointsCount--;
 	}
 
 	return 0;
+}
+
+int sortPoints(FILE *f){
+	int pointsAm, i, pointToSt = 0;
+	point_t point, temp;
+
+	rewind(f);
+	fscanf(f, "%*s%*d");
+	while (fscanf(f, "%d%d%d", &point.x, &point.y, &point.z) != EOF){
+		for (i = 0; i < pointsCount; i++){
+			if (point.x == pointsArray[i].x && point.y == pointsArray[i].y &&
+				point.z == pointsArray[i].z){
+				break;
+			}
+		}
+
+		if (i == pointsCount) continue;
+
+		temp = pointsArray[pointToSt];
+		pointsArray[pointToSt] = pointsArray[i];
+		pointsArray[i] = temp;
+		pointToSt++;
+	}
 }
 
 #pragma endregion
