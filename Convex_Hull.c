@@ -519,8 +519,7 @@ int swap(int **A, int size, int s1, int s2){
 
 // Проверяет принадлежность найденных вершин многограннику
 int checkVertices(){
-	int i, j, k, res, res_to_ctrl, pos_n, neg_n;
-	int *results = NULL;
+	int i, j, k, res;
 
 	for (i = 0; i < ineqCount; i++){
 		for (j = 0; j < pointsCount; j++){
