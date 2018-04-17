@@ -33,7 +33,7 @@ int checkVertices();
 int collisionDetection();
 void printInequalities(int, int);
 void reverse(int **);
-void vertexEnum(FILE *);
+void vertexEnum(FILE *, int);
 void printPoints();
 void printAdjacencyMatrix();
 void printFaceInfo();
@@ -80,7 +80,7 @@ int consoleInput(){
 // Файловый ввод
 int fileInput(int argc, char *argv[]){
 	FILE *f = NULL, *f2 = NULL;
-	int arraySize, i;
+	int arraySize, i, typeIn;
 	char type[10];
 	point_t point;
 	ineq_t ineq;
@@ -116,6 +116,7 @@ int fileInput(int argc, char *argv[]){
 
 			free(pointsArray);
 			pointsArray = NULL;
+			typeIn = 0;
 		}else if (strcmp(type, "H") == 0){
 			// Память под неравенства 
 			ineqArray = (ineq_t*)malloc(arraySize * sizeof(ineq_t));
@@ -135,13 +136,13 @@ int fileInput(int argc, char *argv[]){
 
 			// Вывод неравенств в поток
 			printInequalities(0, ineqCount);
-			printPoints();
+			typeIn = 1;
 		}else{
 			// Непонятно что дано на вход
 			return 1;
 		}
 
-		vertexEnum(f);
+		vertexEnum(f, typeIn);
 		// Строим граф
 		skeleton();
 	}else{
@@ -313,7 +314,7 @@ int linearDep(int arraySize, ineq_t cmp){
 #pragma region VERTEX ENUMERATION (B1)(DONE)
 
 // Пересечь по тройкам все возможные неравенства 
-void vertexEnum(FILE *f){
+void vertexEnum(FILE *f, int type){
 	int i, j, k;
 	point_t point;
 
@@ -343,9 +344,9 @@ void vertexEnum(FILE *f){
 		}
 	}
 
-	sortPoints(f);
 	checkVertices();
-	sortPoints(f);
+	if (type == 0)
+		sortPoints(f);
 	printPoints();
 
 	// Освободить память
@@ -521,38 +522,18 @@ int checkVertices(){
 	int i, j, k, res, res_to_ctrl, pos_n, neg_n;
 	int *results = NULL;
 
-	// Память
-	results = (int *)malloc(pointsCount * sizeof(int));
-	if (!results) return 1;
-
 	for (i = 0; i < ineqCount; i++){
-		for (j = 0; j < pointsCount; j++){
-			res_to_ctrl = ineqArray[i].coeffs[0] * pointsArray[j].x +
-				ineqArray[i].coeffs[1] * pointsArray[j].y +
-				ineqArray[i].coeffs[2] * pointsArray[j].z +
-				ineqArray[i].free;
-
-			if (res_to_ctrl != 0) break;
-		}
-
 		for (j = 0; j < pointsCount; j++){
 			res = ineqArray[i].coeffs[0] * pointsArray[j].x +
 				ineqArray[i].coeffs[1] * pointsArray[j].y +
-				ineqArray[i].coeffs[2] * pointsArray[j].z +
-				ineqArray[i].free;
-
-			results[j] = res;
-		}
-
-		for (j = 0; j < pointsCount; j++){
-			if (results[j] != 0 && res_to_ctrl / abs(res_to_ctrl) != results[j] / abs(results[j])){
-				for (k = j; k < pointsCount; k++){
-					if (k + 1 < pointsCount){
-						pointsArray[k] = pointsArray[k + 1];
-					}
+				ineqArray[i].coeffs[2] * pointsArray[j].z;
+			
+			// Наверное, противоположный знак у free
+			if (res > -ineqArray[i].free){
+				for (k = j; k < pointsCount - 1; k++){
+					pointsArray[k] = pointsArray[k + 1];
 				}
 				pointsCount--;
-				j--;
 			}
 		}
 	}
