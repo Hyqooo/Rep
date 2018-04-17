@@ -3,44 +3,53 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
+#include <conio.h>
 #include "dislin.h"
 
 #define EPSILON 0.00000001
 
-// Точка
 typedef struct Point{
 	int x;
 	int y;
 	int z;
 }point_t;
 
-// Неравенство 
 typedef struct Inequality{
 	int coeffs[3];
 	int free;
 }ineq_t;
 
-// Прототипы
-int manage(int, char *[]);
-int consoleInput();
+// Input
+void printInequalities(int, int);
 int fileInput(int, char *[]);
+int manage(int, char *[]);
+
+// Convex hull
 int determineFaces(int);
 int linearDep(int, ineq_t);
-int swap(int **, int, int, int);
-int findMin(int **, int, int);
-int skeleton();
-int checkVertices();
-int collisionDetection();
-void printInequalities(int, int);
-void reverse(int **);
-void vertexEnum(FILE *, int);
-void printPoints();
-void printAdjacencyMatrix();
-void printFaceInfo();
+
+// Vertex enum
 int gauss(int **);
+int checkVertices();
+int sortPoints(FILE *);
 int checkPoint(point_t);
-int graph();
+int findMin(int **, int, int);
+int swap(int **, int, int, int);
+void printPoints();
+void vertexEnum(FILE *, int);
 point_t determinePoints(ineq_t, ineq_t, ineq_t);
+
+// Graph
+int graph();
+int skeleton();
+void printFaceInfo();
+void printAdjacencyMatrix();
+
+// Collision detection
+int collisionDetection();
+
+// Graphics
+int graphics();
 
 // Глобальные переменные
 int ineqCount, pointsCount, **tempArray;
@@ -56,27 +65,22 @@ int main(int argc, char *argv[]){
 
 // Определяет какие функции будут вызваны
 int manage(int argc, char *argv[]){
-	if (argc == 1)
-		// Не читает файлов
-		consoleInput();
-	else{
-		// Read files
-		fileInput(argc, argv);
-	}
 
+	fileInput(argc, argv);
+	
+	printf("\nPress any key to graphics\n");
+	_getch();
+	// Графический вывод
+	graphics();
 
 	// Освобождаем память
 	free(pointsArray);
 	free(ineqArray);
+
+	return 0;
 }
 
 #pragma region INPUT AND OUTPUT
-
-// Консольный ввод
-int consoleInput(){
-
-}
-
 // Файловый ввод
 int fileInput(int argc, char *argv[]){
 	FILE *f = NULL, *f2 = NULL;
@@ -162,6 +166,8 @@ int fileInput(int argc, char *argv[]){
 		fclose(f);
 		fclose(f2);
 	}
+
+	return 0;
 }
 
 void printInequalities(int start, int arraySize){
@@ -186,7 +192,7 @@ void printInequalities(int start, int arraySize){
 
 #pragma endregion
 
-#pragma region CONVEX HULL (A1)(DONE)
+#pragma region CONVEX HULL (A1)
 
 // Находит неравенства 
 int determineFaces(int arraySize){
@@ -311,7 +317,7 @@ int linearDep(int arraySize, ineq_t cmp){
 
 #pragma endregion
 
-#pragma region VERTEX ENUMERATION (B1)(DONE)
+#pragma region VERTEX ENUMERATION (B1)
 
 // Пересечь по тройкам все возможные неравенства 
 void vertexEnum(FILE *f, int type){
@@ -520,6 +526,7 @@ int swap(int **A, int size, int s1, int s2){
 // Проверяет принадлежность найденных вершин многограннику
 int checkVertices(){
 	int i, j, k, res;
+	int *results = NULL;
 
 	for (i = 0; i < ineqCount; i++){
 		for (j = 0; j < pointsCount; j++){
@@ -541,7 +548,7 @@ int checkVertices(){
 }
 
 int sortPoints(FILE *f){
-	int pointsAm, i, pointToSt = 0;
+	int i, pointToSt = 0;
 	point_t point, temp;
 
 	rewind(f);
@@ -561,11 +568,13 @@ int sortPoints(FILE *f){
 		pointsArray[i] = temp;
 		pointToSt++;
 	}
+	
+	return 0;
 }
 
 #pragma endregion
 
-#pragma region 1-SKELETON (B2)(DONE)
+#pragma region 1-SKELETON (B2)
 
 int skeleton(){
 	int i;
@@ -671,7 +680,7 @@ void printFaceInfo(int edgePoints[15], int count){
 
 #pragma endregion
 
-#pragma region COLLISION DETECTION (B3)(DONE)
+#pragma region COLLISION DETECTION (B3)
 
 int collisionDetection(FILE *f, FILE *f2){
 	int size_1, size_2, posToBack, i, j, res, null_res;
@@ -725,6 +734,91 @@ int collisionDetection(FILE *f, FILE *f2){
 
 #pragma region GRAPHICS AND STUFF
 
+int graphics(){
+	int i, j, iret;
+	point_t max_coord, min_coord;
+	char *buff = NULL;
 
+	buff = (char*)malloc(10 * pointsCount * sizeof(char));
+	if (!buff) return 1;
+
+	// Сетап
+	setpag("da4l");
+	scrmod("reverse");
+	metafl("cons");
+	disini();
+	pagera();
+	light("on");
+	for (i = 1; i < 9; i++)
+		litmod(i, "on");
+	matop3((float)0.02, (float)0.02, (float)0.02, "specular");
+
+	clip3d("none");
+
+	htitle(50);
+	titlin("Convex Hull", 4);
+
+	name("X", "x");
+	name("Y", "y");
+	name("Z", "z");
+
+	labdig(-1, "xyz");
+	labl3d("hori");
+
+	min_coord = pointsArray[0];
+	max_coord = pointsArray[0];
+	for (i = 0; i < pointsCount; i++){
+		if (min_coord.x > pointsArray[i].x)
+			min_coord.x = pointsArray[i].x;
+		if (min_coord.y > pointsArray[i].y)
+			min_coord.y = pointsArray[i].y;
+		if (min_coord.z > pointsArray[i].z)
+			min_coord.z = pointsArray[i].z;
+
+		if (max_coord.x < pointsArray[i].x)
+			max_coord.x = pointsArray[i].x;
+		if (max_coord.y < pointsArray[i].y)
+			max_coord.y = pointsArray[i].y;
+		if (max_coord.z < pointsArray[i].z)
+			max_coord.z = pointsArray[i].z;
+	}
+
+	graf3d((float)(max_coord.x + 1), (float)min_coord.x - 1, (float)min_coord.x - 1, -1.0,
+		(float)max_coord.y + 1, (float)min_coord.y - 1, (float)min_coord.y - 1, -1.0,
+		(float)max_coord.z + 1, (float)min_coord.z - 1, (float)min_coord.z - 1, -1.0);
+	grid3d(1, 1, "ALL");
+	title();
+
+	axis3d((float)max_coord.x + 1, (float)max_coord.y + 1, (float)max_coord.z + 1);
+
+	shdmod("smooth", "surface");
+
+	iret = zbfini();
+	matop3(1.0, 0, 0, "diffuse");
+	// Точки
+	for (i = 0; i < pointsCount; i++){
+		sphe3d((float)pointsArray[i].x, (float)pointsArray[i].y, (float)pointsArray[i].z,
+			(float)0.05, 50, 25);
+	}
+
+	matop3(0.0, 1.0, 0.0, "diffuse");
+	// Ребра
+	for (i = 0; i < pointsCount; i++){
+		for (j = 0; j < pointsCount; j++){
+			if (j <= i) continue;
+			if (adjacencyMatrix[i][j] == 1){
+				tube3d((float)pointsArray[i].x, (float)pointsArray[i].y, (float)pointsArray[i].z,
+					(float)pointsArray[j].x, (float)pointsArray[j].y, (float)pointsArray[j].z, 
+					(float)0.015, 50, 25);
+			}
+		}
+	}
+
+
+	zbffin();
+	disfin();
+
+	return 0;
+}
 
 #pragma endregion
