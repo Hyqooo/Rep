@@ -73,7 +73,7 @@ int printText(FILE *f2Read, FILE *f2Write){
 
 	while (fscanf(f2Read, "%s%d", tempWord, &count) != EOF){
 		if (count != 1){
-			fprintf(f2Write, "\n%s %d", tempWord, count);
+			fprintf(f2Write, "\n%s - %d", tempWord, count);
 		}
 	}
 
