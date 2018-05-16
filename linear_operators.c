@@ -18,7 +18,10 @@ void init(int *, int);
 void nextPerm(int *, int, int);
 void matrixInput(FILE *);
 void printMatrix(int, ratio_t **);
+void makeCharPolynomial();
 void errorHandler(int);
+
+int choose(int, int);
 
 ratio_t RecursiveLaplace(ratio_t **, int);
 ratio_t **GetAMinor(ratio_t **, int, int, int);
@@ -33,18 +36,38 @@ int main(int agrc, char *argv[]){
 
 	f = fopen(argv[1], "r");
 	if (!f) errorHandler(1);
-//	matrixInput(f);
+	matrixInput(f);
 	fclose(f);
 
-//	printMatrix(matrixSize, inputMatrix);
+	printMatrix(matrixSize, inputMatrix);
+	/*
+	int *seq = (int*)malloc(matrixSize * sizeof(int));
+	init(seq, 2);
 
-//	res = RecursiveLaplace(inputMatrix, matrixSize);
-//	printf("%d/%d\n", res.numerator, res.denominator);
+	ratio_t** minorMatrix = (ratio_t**)malloc(matrixSize * sizeof(ratio_t));
+	if (!minorMatrix) errorHandler(0);
+	for (int i = 0; i < matrixSize; i++){
+		minorMatrix[i] = (ratio_t*)malloc(matrixSize * sizeof(ratio_t));
+		if (!minorMatrix[i]) errorHandler(0);
+	}
+
+	for (int i = 0; i < choose(matrixSize, 2); i++){
+		for (int j = 0; j < 2; j++)
+			printf("%d ", seq[j]);
+		printf("\n%d:\n", i);
+		chooseMatrix(minorMatrix, seq, matrixSize);
+		printMatrix(2, minorMatrix);
+		printf("\n");
+		nextPerm(seq, 2, matrixSize);
+	}
+	*/
+
+	makeCharPolynomial();
 }
 
 void makeCharPolynomial(){
-	int i, j, polPower;
-	ratio_t sum;
+	int i, j, polPower, temp, *seq = NULL;
+	ratio_t sum, result, **minorMatrix = NULL;
 
 	charPolynomial = (ratio_t*)malloc((matrixSize + 1) * sizeof(ratio_t));
 	if (!charPolynomial) errorHandler(0);
@@ -52,13 +75,85 @@ void makeCharPolynomial(){
 	charPolynomial[0].numerator = -1;
 	charPolynomial[0].denominator = 1;
 
+	seq = (int*)malloc(matrixSize * sizeof(int));
+	if (!seq) errorHandler(0);
+
+	minorMatrix = (ratio_t**)malloc(matrixSize * sizeof(ratio_t));
+	if (!minorMatrix) errorHandler(0);
+	for (i = 0; i < matrixSize; i++){
+		minorMatrix[i] = (ratio_t*)malloc(matrixSize * sizeof(ratio_t));
+		if (!minorMatrix[i]) errorHandler(0);
+	}
+
 	for (polPower = 1; polPower < matrixSize + 1; polPower++){
-		for (i = 0; i < matrixSize; i++){
-			for (j = i; j < matrixSize; j++){
-				charPolynomial[polPower];
+		init(seq, polPower);
+
+		sum.numerator = 0;
+		sum.denominator = 1;
+		for (i = 0; i < choose(matrixSize, polPower); i++){
+			// Выбираем минор по перестановки и находим определитель
+			chooseMatrix(minorMatrix, seq, matrixSize);
+			result = RecursiveLaplace(minorMatrix, polPower);
+			
+			if (result.denominator != sum.denominator){
+				temp = result.denominator;
+				result.numerator *= sum.denominator;
+				result.denominator *= sum.denominator;
+				sum.numerator *= temp;
+				sum.denominator *= temp;
 			}
+
+			sum.numerator += result.numerator;
+
+			// Сокращаем числитель и знаменатель
+			temp = NumberGcd(abs(sum.numerator), abs(sum.denominator));
+			sum.numerator /= temp;
+			sum.denominator /= temp;
+			
+			nextPerm(seq, polPower, matrixSize);
+		}
+		if ((matrixSize - polPower) % 2 != 0){
+			sum.numerator = -sum.numerator;
+		}
+
+		charPolynomial[polPower] = sum;
+	}
+
+	// Вывод многочлена
+	for (i = 0; i < matrixSize + 1; i++){
+		printf("%+d/%dx^%d", charPolynomial[i].numerator, charPolynomial[i].denominator, matrixSize - i);
+	}
+}
+
+// Выбирает главный минор
+int chooseMatrix(ratio_t **matrix, int *seq, int size){
+	int i, j, k, j_, k_;
+
+	for (j = 0, j_ = 0; j < size; j++, j_++){
+		if (j != seq[j_]){
+			--j_;
+			continue;
+		}
+		for (k = 0, k_ = 0; k < size; k++, k_++){
+			if (k != seq[k_]){
+				--k_;
+				continue;
+			}
+
+			matrix[j_][k_] = inputMatrix[j][k];
 		}
 	}
+}
+
+// Число сочетаний из n по k
+int choose(int n, int k) {
+	int r = 1;
+
+	for (int d = 1; d <= k; ++d) {
+		r *= n--;
+		r /= d;
+	}
+	return r;
 }
 
 void init(int *seq, int size){
@@ -157,12 +252,17 @@ ratio_t RecursiveLaplace(ratio_t **A, int size){
 	result.denominator = 1;
 	result.numerator = 0;
 
+	if (size == 1){
+		return A[0][0];
+	}
+
 	if (size == 2){
 		firstTerm.numerator = A[0][0].numerator * A[1][1].numerator;
 		firstTerm.denominator = A[0][0].denominator * A[1][1].denominator;
 		secondTerm.numerator = A[1][0].numerator * A[0][1].numerator;
 		secondTerm.denominator = A[1][0].denominator * A[0][1].denominator;
 		
+		/* Можно вынести в функцию */
 		if (firstTerm.denominator != secondTerm.denominator){
 			temp = firstTerm.denominator;
 			firstTerm.numerator *= secondTerm.denominator;
