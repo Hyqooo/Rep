@@ -13,6 +13,9 @@ typedef struct RationalFraction ratio_t;
 // Прототипы
 int Sign(int);
 int NumberGcd(int, int);
+int chooseMatrix(ratio_t **, int *, int);
+int divisors(int *, int, int);
+int findRationalRoots(ratio_t *, int);
 
 void init(int *, int);
 void nextPerm(int *, int, int);
@@ -20,59 +23,59 @@ void matrixInput(FILE *);
 void printMatrix(int, ratio_t **);
 void makeCharPolynomial();
 void errorHandler(int);
+void printPolynomial(ratio_t *, int);
+void toIntCoeffs(ratio_t *, int);
+void reduceCoeffs(ratio_t *, int);
 
 int choose(int, int);
 
 ratio_t RecursiveLaplace(ratio_t **, int);
 ratio_t **GetAMinor(ratio_t **, int, int, int);
+ratio_t valueAtPoint(ratio_t *, ratio_t, int);
 
 // Глобальные перменные
 int matrixSize;
-ratio_t **inputMatrix, *charPolynomial;
+ratio_t **inputMatrix, *charPolynomial, *roots;
 
 int main(int agrc, char *argv[]){
 	FILE *f = NULL;
-	ratio_t res;
+	int rootsAmount;
 
 	f = fopen(argv[1], "r");
 	if (!f) errorHandler(1);
 	matrixInput(f);
 	fclose(f);
 
+	printf("Matrix:\n");
 	printMatrix(matrixSize, inputMatrix);
-	/*
-	int *seq = (int*)malloc(matrixSize * sizeof(int));
-	init(seq, 2);
-
-	ratio_t** minorMatrix = (ratio_t**)malloc(matrixSize * sizeof(ratio_t));
-	if (!minorMatrix) errorHandler(0);
-	for (int i = 0; i < matrixSize; i++){
-		minorMatrix[i] = (ratio_t*)malloc(matrixSize * sizeof(ratio_t));
-		if (!minorMatrix[i]) errorHandler(0);
-	}
-
-	for (int i = 0; i < choose(matrixSize, 2); i++){
-		for (int j = 0; j < 2; j++)
-			printf("%d ", seq[j]);
-		printf("\n%d:\n", i);
-		chooseMatrix(minorMatrix, seq, matrixSize);
-		printMatrix(2, minorMatrix);
-		printf("\n");
-		nextPerm(seq, 2, matrixSize);
-	}
-	*/
 
 	makeCharPolynomial();
+
+	rootsAmount = findRationalRoots(charPolynomial, matrixSize + 1);
+
+	printf("Roots:\n");
+	for (int i = 0; i < rootsAmount; i++){
+		if (roots[i].denominator != 1)
+			printf("x_%d = %d/%d\n", i, roots[i].numerator, roots[i].denominator);
+		else
+			printf("x_%d = %d\n", i, roots[i].numerator);
+	}
 }
 
+#pragma region CASE A
+
 void makeCharPolynomial(){
-	int i, j, polPower, temp, *seq = NULL;
+	int i, polPower, temp, *seq = NULL;
 	ratio_t sum, result, **minorMatrix = NULL;
 
 	charPolynomial = (ratio_t*)malloc((matrixSize + 1) * sizeof(ratio_t));
 	if (!charPolynomial) errorHandler(0);
 
-	charPolynomial[0].numerator = -1;
+	if (matrixSize % 2 != 0)
+		charPolynomial[0].numerator = -1;
+	else
+		charPolynomial[0].numerator = 1;
+	
 	charPolynomial[0].denominator = 1;
 
 	seq = (int*)malloc(matrixSize * sizeof(int));
@@ -112,6 +115,7 @@ void makeCharPolynomial(){
 			
 			nextPerm(seq, polPower, matrixSize);
 		}
+
 		if ((matrixSize - polPower) % 2 != 0){
 			sum.numerator = -sum.numerator;
 		}
@@ -120,14 +124,13 @@ void makeCharPolynomial(){
 	}
 
 	// Вывод многочлена
-	for (i = 0; i < matrixSize + 1; i++){
-		printf("%+d/%dx^%d", charPolynomial[i].numerator, charPolynomial[i].denominator, matrixSize - i);
-	}
+	printf("Characteristic polynomial:\nF(x) = ");
+	printPolynomial(charPolynomial, matrixSize + 1);
 }
 
 // Выбирает главный минор
 int chooseMatrix(ratio_t **matrix, int *seq, int size){
-	int i, j, k, j_, k_;
+	int j, k, j_, k_;
 
 	for (j = 0, j_ = 0; j < size; j++, j_++){
 		if (j != seq[j_]){
@@ -143,6 +146,8 @@ int chooseMatrix(ratio_t **matrix, int *seq, int size){
 			matrix[j_][k_] = inputMatrix[j][k];
 		}
 	}
+
+	return 0;
 }
 
 // Число сочетаний из n по k
@@ -180,6 +185,142 @@ void nextPerm(int *seq, int	sizeSelect, int size){
 		}
 	}
 }
+
+// Вернуть количество корней
+int findRationalRoots(ratio_t *pol, int size){
+	// pA - делители свободного члена, qA - делители первого коэффициента
+	struct{
+		int *divArray;
+		int size;
+	}pA, qA;
+
+	int i, j, rootsAmount = 0;
+	ratio_t argument;
+
+	pA.divArray = qA.divArray = NULL;
+
+	toIntCoeffs(pol, size);
+
+	roots = (ratio_t*)malloc(matrixSize * sizeof(ratio_t));
+	if (!roots) errorHandler(0);
+
+	// Количество делителей стоит переписать
+	qA.divArray = (int *)malloc((abs(pol[0].numerator) * 2) * sizeof(int));
+	pA.divArray = (int *)malloc((abs(pol[size - 1].numerator) * 2) * sizeof(int));
+	if (!qA.divArray || !pA.divArray) errorHandler(0);
+
+	qA.size = divisors(qA.divArray, abs(pol[0].numerator), 1);
+	pA.size = divisors(pA.divArray, abs(pol[size - 1].numerator), 0);
+
+	for (i = 0; i < qA.size; i++){
+		for (j = 0; j < pA.size; j++){
+			argument.numerator = pA.divArray[j];
+			argument.denominator = qA.divArray[i];
+			if (valueAtPoint(pol, argument, size).numerator == 0){
+				if (compareRoots(argument, rootsAmount) == 0){
+					roots[rootsAmount] = argument;
+					rootsAmount++;
+				}
+			}
+		}
+	}
+
+	free(qA.divArray);
+	free(pA.divArray);
+
+	return rootsAmount;
+}
+
+int compareRoots(ratio_t potenialRoot, int size){
+	int gcd, i;
+
+	gcd = NumberGcd(potenialRoot.numerator, potenialRoot.denominator);
+	potenialRoot.numerator /= gcd;
+	potenialRoot.denominator /= gcd;
+
+	for (i = 0; i < size; i++){
+		if (roots[i].numerator == potenialRoot.numerator &&
+			roots[i].denominator == potenialRoot.denominator){
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+ratio_t valueAtPoint(ratio_t *pol, ratio_t arg, int size){
+	int i, temp, gcd; 
+	ratio_t sum, valueInPower;
+
+	sum.numerator = 0;
+	sum.denominator = 1;
+
+	for (i = 0; i < size; i++){
+		valueInPower.numerator = pol[i].numerator * (int)pow(arg.numerator, size - i - 1);
+		valueInPower.denominator = pol[i].denominator * (int)pow(arg.denominator, size - i - 1);
+
+		if (valueInPower.denominator != sum.denominator){
+			temp = valueInPower.denominator;
+			valueInPower.numerator *= sum.denominator;
+			valueInPower.denominator *= sum.denominator;
+			sum.numerator *= temp;
+			sum.denominator *= temp;
+		}
+
+		sum.numerator += valueInPower.numerator;
+		gcd = NumberGcd(sum.numerator, sum.denominator);
+		sum.numerator /= gcd;
+		sum.denominator /= gcd;
+	}
+
+	return sum;
+}
+
+int divisors(int *arrayDiv, int n, int f){
+	int i, j;
+
+	for (i = 1, j = 0; i < n + 1; i++){
+		if (n % i == 0){
+			arrayDiv[j] = i;
+			if (!f){
+				arrayDiv[j + 1] = -i;
+				j += 2;
+			}else{
+				j += 1;
+			}
+		}
+	}
+
+	return j;
+}
+
+void toIntCoeffs(ratio_t *pol, int size){
+	int gcd, lcm, i;
+
+	lcm = pol[0].denominator;
+	for (i = 1; i < size; i++){
+		gcd = NumberGcd(lcm, pol[i].denominator);
+		lcm = lcm * pol[i].denominator / gcd;
+	}
+
+	for (i = 0; i < size; i++){
+		pol[i].numerator *= lcm;
+	}
+
+	reduceCoeffs(pol, size);
+}
+
+void reduceCoeffs(ratio_t *pol, int size){
+	int gcd, i;
+
+	for (i = 0; i < size; i++){
+		gcd = NumberGcd(abs(pol[i].numerator), (pol[i].denominator));
+		pol[i].numerator /= gcd;
+		pol[i].denominator /= gcd;
+	}
+}
+
+#pragma endregion
 
 #pragma region INPUT/OUTPUT AND UTILITY
 
@@ -221,6 +362,27 @@ void printMatrix(int size, ratio_t **matrix){
 		}
 		printf("\n");
 	}
+}
+
+void printPolynomial(ratio_t *pol, int size){
+	int i;
+
+	for (i = 0; i < size; i++){
+		if (pol[i].denominator == 1){
+			printf("%+d", pol[i].numerator);
+		}else if(pol[i].numerator != 0){
+			printf("%+d/%d", pol[i].numerator, pol[i].denominator);
+		}
+
+		if (i == size - 2 || i == size - 1){
+			if (i == size - 2)
+				printf("x");
+		}
+		else{
+			printf("x^%d", size - i - 1);
+		}
+	}
+	printf("\n");
 }
 
 void errorHandler(int errorCode){
